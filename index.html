@@ -1,5 +1,86 @@
+<!-- first version ready: v1.0.0 -->
 <!DOCTYPE html>
-<html>
-<head><title>ocean</title></head>
-<body><h1>hola, soy ocean</h1></body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="version" content="1.0.0">
+  <title>@ocean</title>
+  <meta name="description" content="ocean — i write code and break things.">
+  <link rel="icon" type="image/png" href="assets/icons/favicon.png">
+  <link rel="preload" as="image" href="assets/images/fondo.jpg">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body data-page-title="home">
+
+  <div class="bg" style="background-image:url('assets/images/fondo.jpg')"></div>
+  <div class="noise"></div>
+  <div class="scanlines"></div>
+
+  <div class="frame">
+
+    <header class="top">
+      <span class="prompt">~/ocean</span>
+      <span class="cursor">_</span>
+    </header>
+
+    <main class="content">
+
+      <div class="avatar-wrap">
+        <img class="avatar" src="assets/images/mi-pfp.jpg" alt="ocean" width="116" height="116" fetchpriority="high" decoding="async">
+        <span class="ring"></span>
+        <h1 class="name" data-text="@ocean"><span class="at">@</span>ocean</h1>
+      </div>
+
+      <div class="status">
+        <span class="dot"></span>
+        online
+      </div>
+
+      <p class="bio">
+        i build small tools and break big things.<br>
+        <span class="hl">quiet work, loud results.</span>
+      </p>
+
+      <div class="links">
+        <button class="icon-btn" type="button" data-copy-value="2cean" aria-label="copy discord username">
+          <svg viewBox="0 0 24 24"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+        </button>
+        <a class="icon-btn social-email" href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=dev.oceam%40gmail.com" target="_blank" rel="noopener noreferrer" data-copy-value="dev.oceam@gmail.com" aria-label="email ocean and copy email address">
+          <img class="gmail-icon" src="assets/images/gmail-flaticon.png" alt="" aria-hidden="true">
+        </a>
+        <a class="icon-btn social-namemc" href="https://namemc.com/profile/4fkz" target="_blank" rel="noopener noreferrer" aria-label="namemc profile">
+          <svg class="nmc-icon" viewBox="-8 -8 16 16" aria-hidden="true" shape-rendering="crispEdges"><path d="M-5-5H3V-3H5V5H3V-3H-3V5H-5Z"/></svg>
+        </a>
+        <a class="icon-btn social-github" href="https://github.com/pirateKnow" target="_blank" rel="noopener noreferrer" aria-label="github profile">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.56.1.76-.24.76-.54v-2.1c-3.1.67-3.76-1.32-3.76-1.32-.5-1.28-1.23-1.62-1.23-1.62-1.01-.69.08-.68.08-.68 1.12.08 1.71 1.15 1.71 1.15.99 1.7 2.6 1.21 3.23.93.1-.72.39-1.21.7-1.49-2.47-.28-5.07-1.24-5.07-5.5 0-1.22.44-2.22 1.15-3-.12-.28-.5-1.42.11-2.96 0 0 .94-.3 3.05 1.15a10.6 10.6 0 0 1 5.55 0c2.12-1.45 3.05-1.15 3.05-1.15.61 1.54.23 2.68.12 2.96.71.78 1.14 1.78 1.14 3.01 0 4.27-2.6 5.21-5.08 5.49.4.35.75 1.02.75 2.06v3.07c0 .3.2.65.77.54A11.1 11.1 0 0 0 12 .9z"/></svg>
+        </a>
+        <a class="icon-btn social-youtube" href="https://www.youtube.com/@oceamm" target="_blank" rel="noopener noreferrer" aria-label="youtube channel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.12-2.12C19.51 3.57 12 3.57 12 3.57s-7.51 0-9.38.5A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.12 2.12c1.87.5 9.38.5 9.38.5s7.51 0 9.38-.5a3 3 0 0 0 2.12-2.12A31.3 31.3 0 0 0 24 12a31.3 31.3 0 0 0-.5-5.8ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z"/></svg>
+        </a>
+        <a class="icon-btn social-roblox" href="https://www.roblox.com/users/10865010107/profile" target="_blank" rel="noopener noreferrer" aria-label="roblox profile">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.25 1.5 22.5 5.25 18.75 22.5 1.5 18.75 5.25 1.5Zm4.7 7.7-1.1 5.05 5.05 1.1 1.1-5.05-5.05-1.1Z"/></svg>
+        </a>
+      </div>
+
+    </main>
+
+    <footer class="footer">
+      <div class="footer-links">
+        <a class="footer-link" href="proyectos.html">projects</a>
+        <a class="footer-link" href="game.html">arcade</a>
+        <a class="footer-link" href="services.html">services</a>
+      </div>
+      <div class="footer-copy">ocean.is-a.dev &middot; built in the dark</div>
+    </footer>
+
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">copied</div>
+
+  <script src="js/script.js"></script>
+</body>
 </html>

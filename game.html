@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>#arcade</title>
+  <meta name="description" content="a small asteroid arcade game by ocean.">
+  <link rel="icon" type="image/png" href="assets/icons/favicon.png">
+  <link rel="preload" as="image" href="assets/images/fondo.jpg">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="game-page" data-page-title="arcade">
+  <div class="bg" style="background-image:url('assets/images/fondo.jpg')"></div>
+  <div class="noise"></div>
+  <div class="scanlines"></div>
+
+  <main class="game-shell">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">~/ocean/arcade</p>
+        <h1 class="title">star<span>fall</span></h1>
+      </div>
+      <a class="back-link" href="index.html">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>
+        back to profile
+      </a>
+    </header>
+
+    <section class="game-panel" aria-label="arcade game">
+      <div class="game-hud" aria-label="game stats">
+        <span>score <strong id="game-score">0</strong></span>
+        <span>lives <strong id="game-lives">3</strong></span>
+        <span>best <strong id="game-best">0</strong></span>
+      </div>
+
+      <canvas class="game-screen" id="game-canvas" width="1200" height="700" tabindex="0" role="application" aria-label="asteroid arcade game. click to start, move the pointer to steer, click and hold to fire, press escape to pause or resume. bosses appear every 1000 points."></canvas>
+      <p class="game-status" id="game-status" role="status" aria-live="polite">click the game to start.</p>
+    </section>
+
+    <footer class="game-footer">
+      <a class="back-link" href="proyectos.html">
+        view projects
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 10.59 5.41 16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+      </a>
+      <span class="footer-copy">ocean.is-a.dev · built in the dark</span>
+    </footer>
+  </main>
+
+  <script src="js/script.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
