@@ -158,6 +158,7 @@
       spawnInvaders(state);
     } else if (game === 'coastline') {
       state.lane = 1;
+      state.visualLane = 1;
       state.carY = height - 118;
       state.traffic = [];
       state.spawnTimer = 0.65;
@@ -174,6 +175,9 @@
       state.echoTimer = 0.45;
       state.activeEcho = -1;
       state.inputLocked = true;
+      state.feedbackDirection = -1;
+      state.feedbackTimer = 0;
+      state.feedbackCorrect = false;
     }
     return state;
   }
@@ -427,39 +431,55 @@
     for (let lane = 1; lane < 3; lane++) {
       const x = roadLeft + lane * laneWidth;
       for (let y = miniGame.roadOffset - 72; y < height; y += 108) {
-        context.fillRect(x - 2, y, 4, 46);
+        fillRoundedRect(x - 2, y, 4, 46, 2);
       }
     }
     for (let y = (miniGame.roadOffset * 1.35) % 110 - 110; y < height; y += 110) {
       context.fillStyle = 'rgba(215, 217, 219, 0.25)';
-      context.fillRect(roadLeft - 48, y, 12, 28);
-      context.fillRect(roadLeft + roadWidth + 36, y, 12, 28);
+      fillRoundedRect(roadLeft - 48, y, 12, 28, 4);
+      fillRoundedRect(roadLeft + roadWidth + 36, y, 12, 28, 4);
     }
     miniGame.traffic.forEach(function (car) {
       drawCar(roadLeft + laneWidth * (car.lane + 0.5), car.y, car.color, false);
     });
-    drawCar(roadLeft + laneWidth * (miniGame.lane + 0.5), miniGame.carY, '#d2d4d5', true);
+    drawCar(roadLeft + laneWidth * (miniGame.visualLane + 0.5), miniGame.carY, '#d2d4d5', true);
     drawText('NIGHT DRIVE  /  ' + String(miniGame.score).padStart(4, '0'), width / 2, 48, 15, '#c4c6c8');
+  }
+
+  function fillRoundedRect(x, y, rectWidth, rectHeight, radius) {
+    const corner = Math.min(radius, rectWidth / 2, rectHeight / 2);
+    context.beginPath();
+    context.moveTo(x + corner, y);
+    context.lineTo(x + rectWidth - corner, y);
+    context.quadraticCurveTo(x + rectWidth, y, x + rectWidth, y + corner);
+    context.lineTo(x + rectWidth, y + rectHeight - corner);
+    context.quadraticCurveTo(x + rectWidth, y + rectHeight, x + rectWidth - corner, y + rectHeight);
+    context.lineTo(x + corner, y + rectHeight);
+    context.quadraticCurveTo(x, y + rectHeight, x, y + rectHeight - corner);
+    context.lineTo(x, y + corner);
+    context.quadraticCurveTo(x, y, x + corner, y);
+    context.closePath();
+    context.fill();
   }
 
   function drawCar(x, y, color, player) {
     const left = x - 25;
     context.fillStyle = '#08090a';
-    context.fillRect(left - 5, y - 29, 7, 24);
-    context.fillRect(left + 48, y - 29, 7, 24);
-    context.fillRect(left - 5, y + 13, 7, 24);
-    context.fillRect(left + 48, y + 13, 7, 24);
+    fillRoundedRect(left - 5, y - 29, 7, 24, 3);
+    fillRoundedRect(left + 48, y - 29, 7, 24, 3);
+    fillRoundedRect(left - 5, y + 13, 7, 24, 3);
+    fillRoundedRect(left + 48, y + 13, 7, 24, 3);
     context.fillStyle = color;
-    context.fillRect(left, y - 39, 50, 78);
+    fillRoundedRect(left, y - 39, 50, 78, 8);
     context.fillStyle = player ? '#777d81' : '#34383b';
-    context.fillRect(left + 7, y - 25, 36, 21);
-    context.fillRect(left + 7, y + 8, 36, 18);
+    fillRoundedRect(left + 7, y - 25, 36, 21, 5);
+    fillRoundedRect(left + 7, y + 8, 36, 18, 4);
     context.fillStyle = '#d7d8d9';
-    context.fillRect(left + 5, y - 36, 9, 3);
-    context.fillRect(left + 36, y - 36, 9, 3);
+    fillRoundedRect(left + 5, y - 36, 9, 3, 1.5);
+    fillRoundedRect(left + 36, y - 36, 9, 3, 1.5);
     context.fillStyle = player ? '#f0f0ee' : '#a3a5a6';
-    context.fillRect(left + 5, y + 34, 9, 3);
-    context.fillRect(left + 36, y + 34, 9, 3);
+    fillRoundedRect(left + 5, y + 34, 9, 3, 1.5);
+    fillRoundedRect(left + 36, y + 34, 9, 3, 1.5);
     if (player && miniGame.hitCooldown > 0 && Math.floor(miniGame.hitCooldown * 12) % 2) {
       context.strokeStyle = '#f0f0ee';
       context.lineWidth = 2;
@@ -469,32 +489,48 @@
 
   function drawDeepEcho() {
     const nodes = echoNodes();
+    context.beginPath();
+    context.arc(width / 2, height / 2, 206, 0, Math.PI * 2);
+    context.strokeStyle = 'rgba(190, 193, 195, 0.13)';
+    context.lineWidth = 1;
+    context.stroke();
+    context.beginPath();
+    context.arc(width / 2, height / 2, 41, 0, Math.PI * 2);
+    context.fillStyle = 'rgba(255, 255, 255, 0.035)';
+    context.fill();
+    context.strokeStyle = 'rgba(190, 193, 195, 0.22)';
+    context.stroke();
     nodes.forEach(function (node, index) {
-      const active = miniGame.activeEcho === index;
+      const playback = miniGame.activeEcho === index;
+      const feedback = miniGame.feedbackDirection === index && miniGame.feedbackTimer > 0;
+      const pulse = feedback ? miniGame.feedbackTimer / 0.3 : 0;
+      const active = playback || feedback;
+      const radius = playback ? 56 : feedback ? 49 + 8 * pulse : 49;
       context.beginPath();
-      context.arc(node.x, node.y, active ? 57 : 49, 0, Math.PI * 2);
-      context.fillStyle = active ? '#f1f1ef' : '#111315';
+      context.arc(node.x, node.y, radius, 0, Math.PI * 2);
+      context.fillStyle = playback ? '#f1f1ef' : feedback && miniGame.feedbackCorrect ? '#e5e5e3' : '#111315';
       context.fill();
-      context.strokeStyle = active ? '#ffffff' : '#777b7e';
+      context.strokeStyle = playback || feedback && miniGame.feedbackCorrect ? '#ffffff' : '#777b7e';
       context.lineWidth = active ? 3 : 2;
-      context.shadowColor = '#f1f1ef';
-      context.shadowBlur = active ? 18 : 0;
       context.stroke();
-      context.shadowBlur = 0;
-      drawText(['↑', '→', '↓', '←'][index], node.x, node.y + 10, 30, active ? '#101214' : '#bcbfc1');
+      drawText(['↑', '→', '↓', '←'][index], node.x, node.y + 10, 30, playback || feedback && miniGame.feedbackCorrect ? '#101214' : '#bcbfc1');
     });
-    drawText('SONAR ECHO  /  WAVE ' + miniGame.round, width / 2, 66, 15, '#c4c6c8');
+    drawText('SONAR ECHO', width / 2, 47, 13, '#aeb1b3');
+    drawText('ROUND ' + String(miniGame.round).padStart(2, '0'), width / 2, height / 2 + 5, 12, '#c4c6c8');
     if (!miniGame.inputLocked) {
       drawText('REPEAT THE SIGNAL', width / 2, height - 58, 13, '#929699');
     }
   }
 
   function echoNodes() {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const spacing = 150;
     return [
-      { x: width / 2, y: 210 },
-      { x: width / 2 + 165, y: 350 },
-      { x: width / 2, y: 490 },
-      { x: width / 2 - 165, y: 350 }
+      { x: centerX, y: centerY - spacing },
+      { x: centerX + spacing, y: centerY },
+      { x: centerX, y: centerY + spacing },
+      { x: centerX - spacing, y: centerY }
     ];
   }
 
@@ -635,6 +671,7 @@
 
   function moveCoastline(delta) {
     miniGame.roadOffset = (miniGame.roadOffset + (230 + Math.min(miniGame.score, 90) * 2) * delta) % 108;
+    miniGame.visualLane += (miniGame.lane - miniGame.visualLane) * (1 - Math.exp(-12 * delta));
     miniGame.scoreTimer += delta;
     miniGame.hitCooldown = Math.max(0, miniGame.hitCooldown - delta);
     if (miniGame.scoreTimer >= 0.5) {
@@ -656,7 +693,7 @@
     const speed = 230 + Math.min(miniGame.score, 90) * 2;
     miniGame.traffic = miniGame.traffic.filter(function (car) {
       car.y += speed * delta;
-      if (miniGame.hitCooldown <= 0 && car.lane === miniGame.lane && Math.abs(car.y - miniGame.carY) < 74) {
+      if (miniGame.hitCooldown <= 0 && Math.abs(car.lane - miniGame.visualLane) < 0.48 && Math.abs(car.y - miniGame.carY) < 74) {
         miniGame.lives -= 1;
         miniGame.hitCooldown = 0.9;
         status.textContent = miniGame.lives ? 'collision. ' + miniGame.lives + ' lives left.' : 'the road goes quiet.';
@@ -681,6 +718,7 @@
   }
 
   function updateEcho(delta) {
+    miniGame.feedbackTimer = Math.max(0, miniGame.feedbackTimer - delta);
     if (!miniGame.inputLocked) return;
     miniGame.echoTimer -= delta;
     if (miniGame.echoTimer > 0) return;
@@ -698,6 +736,9 @@
   }
 
   function echoInput(direction) {
+    miniGame.feedbackDirection = direction;
+    miniGame.feedbackTimer = 0.3;
+    miniGame.feedbackCorrect = !miniGame.inputLocked && miniGame.sequence[miniGame.inputIndex] === direction;
     if (miniGame.inputLocked) return;
     if (miniGame.sequence[miniGame.inputIndex] !== direction) {
       miniGame.lives -= 1;
