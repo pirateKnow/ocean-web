@@ -7,15 +7,14 @@
   const holdFull = 2200;
   const holdEmpty = 700;
 
-  function startTypewriter(text, update, delay) {
+  function startTypewriter(text, prefix, update, delay) {
     let position = 0;
     let deleting = false;
-    const minPosition = 1;
 
     function tick() {
       if (!deleting) {
         position++;
-        update(text.slice(0, position));
+        update(prefix + text.slice(0, position));
         if (position === text.length) {
           deleting = true;
           setTimeout(tick, holdFull);
@@ -26,8 +25,8 @@
       }
 
       position--;
-      update(text.slice(0, position));
-      if (position === minPosition) {
+      update(prefix + text.slice(0, position));
+      if (position === 0) {
         deleting = false;
         setTimeout(tick, holdEmpty);
         return;
@@ -40,8 +39,9 @@
 
   const pageName = document.body.dataset.pageTitle || 'home';
   const isHome = pageName === 'home';
-  const titleText = isHome ? '@ocean' : '#' + pageName;
-  startTypewriter(titleText, function (value) {
+  const titlePrefix = isHome ? '@' : '#';
+  const titleText = isHome ? 'ocean' : pageName;
+  startTypewriter(titleText, titlePrefix, function (value) {
     document.title = value;
   }, 500);
 
