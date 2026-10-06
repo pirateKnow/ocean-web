@@ -30,7 +30,7 @@
     snake: { title: 'snake', description: 'collect & survive', controls: 'use arrows or wasd to steer.' },
     breakout: { title: 'breakout', description: 'crack the wall', controls: 'move with left/right or follow with the pointer.' },
     invaders: { title: 'void patrol', description: 'defend the signal', controls: 'move with left/right and fire with space.' },
-    dodge: { title: 'last light', description: 'dodge the debris', controls: 'move with arrows or wasd.' }
+    cloudcatcher: { title: 'moon bunny', description: 'catch the falling stars', controls: 'move left and right to catch stars. missed stars cost a heart.' }
   };
   const touchActions = {
     starfall: [],
@@ -39,7 +39,7 @@
     snake: ['left', 'up', 'down', 'right'],
     breakout: ['left', 'right'],
     invaders: ['left', 'right', 'fire'],
-    dodge: ['left', 'up', 'down', 'right']
+    cloudcatcher: ['left', 'right']
   };
   const pieceShapes = [
     [[1, 1, 1, 1]],
@@ -51,7 +51,8 @@
     [[1, 1, 0], [0, 1, 1]]
   ];
   const colors = ['#d8d8d8', '#9c9c9c', '#bcbcbc', '#858585', '#c8c8c8', '#a6a6a6', '#737373'];
-  const aimColors = ['#e8c66a', '#79c7a4', '#78a9e8', '#cf8bba', '#e58e70', '#a991df'];
+  const aimColors = ['#f7f7f7', '#08090b'];
+  const starColors = ['#fff1b8', '#ffc9df', '#d7c8ff', '#c9efff'];
   let selectedGame = 'starfall';
   let miniGame = null;
   let animationFrame = 0;
@@ -123,7 +124,7 @@
     if (game === 'aim') {
       state.lives = 45;
       state.levelHits = 0;
-      state.target = { x: width / 2, y: height / 2, radius: 32, color: '#e8c66a' };
+      state.target = { x: width / 2, y: height / 2, radius: 32, color: aimColors[0] };
     } else if (game === 'tetris') {
       state.board = Array.from({ length: 20 }, function () { return Array(10).fill(0); });
       state.piece = null;
@@ -154,13 +155,11 @@
       state.playerHitTimer = 0;
       state.lives = 3;
       spawnInvaders(state);
-    } else if (game === 'dodge') {
-      state.player = { x: width / 2, y: height - 90, radius: 18 };
-      state.hazards = [];
-      state.spawnTimer = 0;
-      state.lives = 3;
-      state.scoreTimer = 0;
-      state.hitCooldown = 0;
+    } else if (game === 'cloudcatcher') {
+      state.player = { x: width / 2, y: height - 72, width: 84 };
+      state.fallingStars = [];
+      state.spawnTimer = 0.5;
+      state.lives = 5;
     }
     return state;
   }
@@ -209,7 +208,7 @@
             ? 'move the paddle · clear every block'
             : game === 'invaders'
               ? 'move and fire · protect the signal'
-              : 'move in any direction · dodge the debris';
+              : 'scoot left and right to catch the falling stars';
     status.textContent = games[game].description + '. click or tap the field to start.' + (storageWarning ? ' ' + storageWarning : '');
     canvas.focus({ preventScroll: true });
     draw();
@@ -292,7 +291,11 @@
     if (!miniGame || miniGame.state === 'running') return;
     context.fillStyle = 'rgba(4, 5, 7, 0.76)';
     context.fillRect(0, 0, width, height);
-    const heading = miniGame.state === 'ready' ? games[selectedGame].title : miniGame.state === 'paused' ? 'paused' : 'signal lost';
+    const heading = miniGame.state === 'ready'
+      ? games[selectedGame].title
+      : miniGame.state === 'paused'
+        ? 'paused'
+        : selectedGame === 'cloudcatcher' ? 'goodnight' : 'signal lost';
     drawText(heading, width / 2, height / 2 - 10, 28, '#e6e6e6');
     const hint = miniGame.state === 'ready' ? 'click or tap to start' : miniGame.state === 'paused' ? 'press esc or resume' : 'click or tap to play again';
     drawText(hint, width / 2, height / 2 + 28, 15, '#a4a4a4');
@@ -304,6 +307,12 @@
     context.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
     context.fillStyle = target.color;
     context.fill();
+    context.strokeStyle = '#ffffff';
+    context.lineWidth = 3;
+    context.shadowColor = '#ffffff';
+    context.shadowBlur = 10;
+    context.stroke();
+    context.shadowBlur = 0;
     drawText(miniGame.state === 'running' ? String(Math.ceil(miniGame.lives)) + ' SEC' : '45 SEC', width / 2, 54, 17, '#bdbdbd');
   }
 
@@ -387,22 +396,63 @@
     }
   }
 
-  function drawDodge() {
-    miniGame.hazards.forEach(function (hazard) {
-      context.beginPath();
-      context.arc(hazard.x, hazard.y, hazard.radius, 0, Math.PI * 2);
-      context.strokeStyle = 'rgba(210, 210, 210, 0.72)';
-      context.lineWidth = 2;
-      context.stroke();
+  function drawMoonBunny() {
+    miniGame.fallingStars.forEach(function (star) {
+      drawStar(star.x, star.y, star.radius, star.rotation, star.color);
     });
-    context.fillStyle = '#dedede';
+
+    const bunny = miniGame.player;
+    context.fillStyle = '#f7f5f2';
+    context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    context.lineWidth = 2;
     context.beginPath();
-    context.moveTo(miniGame.player.x, miniGame.player.y - 20);
-    context.lineTo(miniGame.player.x - 16, miniGame.player.y + 14);
-    context.lineTo(miniGame.player.x + 16, miniGame.player.y + 14);
-    context.closePath();
+    context.ellipse(bunny.x - 11, bunny.y - 25, 7, 17, -0.12, 0, Math.PI * 2);
+    context.ellipse(bunny.x + 11, bunny.y - 25, 7, 17, 0.12, 0, Math.PI * 2);
     context.fill();
-    drawText('SURVIVE ' + miniGame.score + ' SEC', width / 2, 48, 15, '#bdbdbd');
+    context.stroke();
+
+    context.fillStyle = '#f3b7cc';
+    context.beginPath();
+    context.ellipse(bunny.x - 11, bunny.y - 25, 3, 11, -0.12, 0, Math.PI * 2);
+    context.ellipse(bunny.x + 11, bunny.y - 25, 3, 11, 0.12, 0, Math.PI * 2);
+    context.fill();
+
+    context.fillStyle = '#f7f5f2';
+    context.beginPath();
+    context.arc(bunny.x, bunny.y, 25, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#202028';
+    context.beginPath();
+    context.arc(bunny.x - 8, bunny.y - 2, 2.5, 0, Math.PI * 2);
+    context.arc(bunny.x + 8, bunny.y - 2, 2.5, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#efabc3';
+    context.beginPath();
+    context.arc(bunny.x - 15, bunny.y + 7, 4, 0, Math.PI * 2);
+    context.arc(bunny.x + 15, bunny.y + 7, 4, 0, Math.PI * 2);
+    context.fill();
+    drawText('CATCH THE STARS', width / 2, 48, 15, '#f1e6f0');
+  }
+
+  function drawStar(x, y, radius, rotation, color) {
+    context.beginPath();
+    for (let point = 0; point < 10; point++) {
+      const angle = rotation + point * Math.PI / 5 - Math.PI / 2;
+      const distance = point % 2 ? radius * 0.46 : radius;
+      const px = x + Math.cos(angle) * distance;
+      const py = y + Math.sin(angle) * distance;
+      if (point === 0) context.moveTo(px, py);
+      else context.lineTo(px, py);
+    }
+    context.closePath();
+    context.fillStyle = color;
+    context.shadowColor = color;
+    context.shadowBlur = 12;
+    context.fill();
+    context.shadowBlur = 0;
+    context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    context.lineWidth = 1.5;
+    context.stroke();
   }
 
   function drawBreakout() {
@@ -540,38 +590,38 @@
     }
   }
 
-  function moveDodge(delta) {
-    const horizontal = (heldKeys.has('arrowright') || heldKeys.has('d') ? 1 : 0) - (heldKeys.has('arrowleft') || heldKeys.has('a') ? 1 : 0);
-    const vertical = (heldKeys.has('arrowdown') || heldKeys.has('s') ? 1 : 0) - (heldKeys.has('arrowup') || heldKeys.has('w') ? 1 : 0);
-    miniGame.player.x = Math.max(25, Math.min(width - 25, miniGame.player.x + horizontal * 420 * delta));
-    miniGame.player.y = Math.max(35, Math.min(height - 35, miniGame.player.y + vertical * 420 * delta));
+  function moveMoonBunny(delta) {
+    miniGame.player.x = Math.max(miniGame.player.width / 2, Math.min(width - miniGame.player.width / 2,
+      miniGame.player.x + heldAxis() * 460 * delta));
     miniGame.spawnTimer -= delta;
-    miniGame.scoreTimer += delta;
-    miniGame.hitCooldown = Math.max(0, miniGame.hitCooldown - delta);
-    if (miniGame.scoreTimer >= 1) {
-      miniGame.scoreTimer -= 1;
-      setScore(miniGame.score + 1);
-    }
     if (miniGame.spawnTimer <= 0) {
-      miniGame.hazards.push({
-        x: 25 + Math.random() * (width - 50),
+      miniGame.fallingStars.push({
+        x: 32 + Math.random() * (width - 64),
         y: -24,
-        radius: 10 + Math.random() * 16,
-        speed: 180 + Math.random() * 150 + miniGame.score * 2,
-        drift: (Math.random() - 0.5) * 90
+        radius: 11 + Math.random() * 6,
+        speed: 145 + Math.random() * 55 + Math.min(150, miniGame.score),
+        rotation: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 1.4,
+        color: starColors[Math.floor(Math.random() * starColors.length)]
       });
-      miniGame.spawnTimer = Math.max(0.22, 0.72 - miniGame.score * 0.008);
+      miniGame.spawnTimer = Math.max(0.34, 0.82 - miniGame.score * 0.002);
     }
-    miniGame.hazards = miniGame.hazards.filter(function (hazard) {
-      hazard.y += hazard.speed * delta;
-      hazard.x += hazard.drift * delta;
-      if (miniGame.hitCooldown <= 0 && Math.hypot(miniGame.player.x - hazard.x, miniGame.player.y - hazard.y) < miniGame.player.radius + hazard.radius) {
-        miniGame.lives -= 1;
-        miniGame.hitCooldown = 1;
-        if (miniGame.lives <= 0) finishGame('lights out. survived ' + miniGame.score + ' seconds.');
+    miniGame.fallingStars = miniGame.fallingStars.filter(function (star) {
+      star.y += star.speed * delta;
+      star.rotation += star.spin * delta;
+      if (star.y + star.radius >= miniGame.player.y - 13 &&
+        star.y - star.radius <= miniGame.player.y + 20 &&
+        Math.abs(star.x - miniGame.player.x) <= miniGame.player.width / 2 + star.radius) {
+        setScore(miniGame.score + 10);
+        status.textContent = 'star caught! ' + miniGame.score + ' points.';
         return false;
       }
-      return hazard.y < height + hazard.radius;
+      if (star.y - star.radius > height) {
+        miniGame.lives -= 1;
+        if (miniGame.lives <= 0) finishGame('the stars went home. final score: ' + miniGame.score + '.');
+        return false;
+      }
+      return true;
     });
   }
 
@@ -603,7 +653,7 @@
     else if (selectedGame === 'snake') drawSnake();
     else if (selectedGame === 'breakout') drawBreakout();
     else if (selectedGame === 'invaders') drawInvaders();
-    else if (selectedGame === 'dodge') drawDodge();
+    else if (selectedGame === 'cloudcatcher') drawMoonBunny();
     drawOverlay();
   }
 
@@ -644,8 +694,8 @@
       moveBreakout(delta);
     } else if (selectedGame === 'invaders') {
       moveInvaders(delta);
-    } else if (selectedGame === 'dodge') {
-      moveDodge(delta);
+    } else if (selectedGame === 'cloudcatcher') {
+      moveMoonBunny(delta);
     }
   }
 
@@ -796,13 +846,10 @@
       else if (key === 'right') miniGame.playerX += 45;
       else if (key === 'fire') fireInvaderBullet();
       miniGame.playerX = Math.max(32, Math.min(width - 32, miniGame.playerX));
-    } else if (selectedGame === 'dodge') {
-      if (key === 'left') miniGame.player.x -= 45;
-      else if (key === 'right') miniGame.player.x += 45;
-      else if (key === 'up') miniGame.player.y -= 45;
-      else if (key === 'down') miniGame.player.y += 45;
-      miniGame.player.x = Math.max(25, Math.min(width - 25, miniGame.player.x));
-      miniGame.player.y = Math.max(35, Math.min(height - 35, miniGame.player.y));
+    } else if (selectedGame === 'cloudcatcher') {
+      if (key === 'left') miniGame.player.x -= 54;
+      else if (key === 'right') miniGame.player.x += 54;
+      miniGame.player.x = Math.max(miniGame.player.width / 2, Math.min(width - miniGame.player.width / 2, miniGame.player.x));
     }
     draw();
   }
@@ -820,10 +867,8 @@
     if (!miniGame || miniGame.state !== 'running') return;
     if (selectedGame === 'breakout' || selectedGame === 'invaders') {
       miniGame.playerX = Math.max(32, Math.min(width - 32, pointerPosition(event).x));
-    } else if (selectedGame === 'dodge') {
-      const point = pointerPosition(event);
-      miniGame.player.x = Math.max(25, Math.min(width - 25, point.x));
-      miniGame.player.y = Math.max(35, Math.min(height - 35, point.y));
+    } else if (selectedGame === 'cloudcatcher') {
+      miniGame.player.x = Math.max(miniGame.player.width / 2, Math.min(width - miniGame.player.width / 2, pointerPosition(event).x));
     }
   });
 
@@ -847,9 +892,8 @@
     } else if (selectedGame === 'breakout' || selectedGame === 'invaders') {
       miniGame.playerX = Math.max(32, Math.min(width - 32, point.x));
       if (selectedGame === 'invaders') fireInvaderBullet();
-    } else if (selectedGame === 'dodge') {
-      miniGame.player.x = Math.max(25, Math.min(width - 25, point.x));
-      miniGame.player.y = Math.max(35, Math.min(height - 35, point.y));
+    } else if (selectedGame === 'cloudcatcher') {
+      miniGame.player.x = Math.max(miniGame.player.width / 2, Math.min(width - miniGame.player.width / 2, point.x));
     }
     draw();
   });
