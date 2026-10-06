@@ -10,10 +10,8 @@
   const levelGroup = document.getElementById('game-level-group');
   const levelOutput = document.getElementById('game-level');
   const pauseButton = document.getElementById('game-pause');
-  const gameHud = document.querySelector('.game-hud');
   const title = document.getElementById('arcade-title');
   const mobileHint = document.getElementById('game-mobile-hint');
-  const signalScreen = document.getElementById('signal-screen');
   const menuButtons = Array.from(document.querySelectorAll('[data-game]'));
   const controlButtons = Array.from(document.querySelectorAll('[data-game-action]'));
 
@@ -172,16 +170,7 @@
   }
 
   function selectGame(game) {
-    if (game === 'signal-check') {
-      selectSignalCheck();
-      return;
-    }
     if (!games[game]) return;
-    if (signalScreen) signalScreen.replaceChildren();
-    if (signalScreen) signalScreen.hidden = true;
-    if (gameHud) gameHud.hidden = false;
-    canvas.hidden = false;
-    mobileHint.hidden = false;
     selectedGame = game;
     menuButtons.forEach(function (button) {
       button.setAttribute('aria-pressed', button.dataset.game === game ? 'true' : 'false');
@@ -230,42 +219,6 @@
     canvas.focus({ preventScroll: true });
     draw();
     updateHud();
-    updatePauseButton();
-  }
-
-  function selectSignalCheck() {
-    if (!signalScreen) {
-      console.error('the signal-check screen is missing from the arcade page.');
-      return;
-    }
-    selectedGame = 'signal-check';
-    menuButtons.forEach(function (button) {
-      button.setAttribute('aria-pressed', button.dataset.game === selectedGame ? 'true' : 'false');
-    });
-    setTitle('signal check');
-    document.body.dataset.pageTitle = selectedGame;
-    document.body.dataset.activeGame = selectedGame;
-    document.body.classList.add('mini-game-active');
-    cancelAnimationFrame(animationFrame);
-    animationFrame = 0;
-    pointerStart = null;
-    heldKeys.clear();
-    miniGame = null;
-    window.dispatchEvent(new CustomEvent('arcade:select', { detail: { game: selectedGame } }));
-    if (gameHud) gameHud.hidden = true;
-    canvas.hidden = true;
-    mobileHint.hidden = true;
-    controlButtons.forEach(function (button) { button.hidden = true; });
-    signalScreen.replaceChildren();
-    const video = document.createElement('iframe');
-    video.title = 'signal monitor';
-    video.src = 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&controls=0&rel=0&playsinline=1';
-    video.allow = 'autoplay; encrypted-media; picture-in-picture';
-    video.referrerPolicy = 'strict-origin-when-cross-origin';
-    video.setAttribute('allowfullscreen', '');
-    signalScreen.appendChild(video);
-    signalScreen.hidden = false;
-    status.textContent = 'signal check.';
     updatePauseButton();
   }
 
@@ -968,7 +921,7 @@
   });
 
   window.addEventListener('keydown', function (event) {
-    if (selectedGame === 'starfall' || selectedGame === 'signal-check') return;
+    if (selectedGame === 'starfall') return;
     const key = event.key.toLowerCase();
     const code = event.code.toLowerCase();
     if (key === 'escape') {
@@ -1007,7 +960,7 @@
   });
 
   pauseButton.addEventListener('click', function () {
-    if (selectedGame !== 'starfall' && selectedGame !== 'signal-check') togglePause();
+    if (selectedGame !== 'starfall') togglePause();
   });
 
   controlButtons.forEach(function (button) {
