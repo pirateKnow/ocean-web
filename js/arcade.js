@@ -7,6 +7,8 @@
   const bestOutput = document.getElementById('game-best');
   const scoreLabel = document.getElementById('game-score-label');
   const livesLabel = document.getElementById('game-lives-label');
+  const levelGroup = document.getElementById('game-level-group');
+  const levelOutput = document.getElementById('game-level');
   const pauseButton = document.getElementById('game-pause');
   const title = document.getElementById('arcade-title');
   const mobileHint = document.getElementById('game-mobile-hint');
@@ -23,10 +25,21 @@
   });
   const games = {
     starfall: { title: 'starfall', description: 'asteroid survival', controls: 'drag to steer and hold to fire.' },
-    aim: { title: 'aim lab', description: 'precision practice', controls: 'click the targets before time runs out.' },
+    aim: { title: 'aim lab', description: 'precision practice', controls: 'hit eight targets to level up before time runs out.' },
     tetris: { title: 'blockfall', description: 'stack the signal', controls: 'arrows move · up rotates · space drops.' },
     snake: { title: 'snake', description: 'collect & survive', controls: 'use arrows or wasd to steer.' },
-    pong: { title: 'blackout pong', description: 'beat the machine', controls: 'move the pointer or use left/right.' }
+    breakout: { title: 'breakout', description: 'crack the wall', controls: 'move with left/right or follow with the pointer.' },
+    invaders: { title: 'void patrol', description: 'defend the signal', controls: 'move with left/right and fire with space.' },
+    dodge: { title: 'last light', description: 'dodge the debris', controls: 'move with arrows or wasd.' }
+  };
+  const touchActions = {
+    starfall: [],
+    aim: [],
+    tetris: ['left', 'right', 'rotate', 'down', 'drop'],
+    snake: ['left', 'up', 'down', 'right'],
+    breakout: ['left', 'right'],
+    invaders: ['left', 'right', 'fire'],
+    dodge: ['left', 'up', 'down', 'right']
   };
   const pieceShapes = [
     [[1, 1, 1, 1]],
@@ -38,11 +51,13 @@
     [[1, 1, 0], [0, 1, 1]]
   ];
   const colors = ['#d8d8d8', '#9c9c9c', '#bcbcbc', '#858585', '#c8c8c8', '#a6a6a6', '#737373'];
+  const aimColors = ['#e8c66a', '#79c7a4', '#78a9e8', '#cf8bba', '#e58e70', '#a991df'];
   let selectedGame = 'starfall';
   let miniGame = null;
   let animationFrame = 0;
   let pointerStart = null;
   let storageWarning = '';
+  const heldKeys = new Set();
 
   function setTitle(value) {
     const accent = title.querySelector('span');
@@ -65,15 +80,19 @@
   function updateHud() {
     if (!miniGame) return;
     scoreOutput.textContent = String(miniGame.score);
-    const lives = selectedGame === 'snake'
+    const value = selectedGame === 'snake'
       ? miniGame.snake.length
       : selectedGame === 'tetris'
         ? miniGame.lines
         : selectedGame === 'aim'
           ? Math.ceil(miniGame.lives)
           : miniGame.lives;
-    livesOutput.textContent = String(lives);
+    livesOutput.textContent = String(value);
     bestOutput.textContent = String(miniGame.best);
+    if (levelGroup && levelOutput) {
+      levelGroup.hidden = selectedGame !== 'aim';
+      if (selectedGame === 'aim') levelOutput.textContent = String(miniGame.level);
+    }
   }
 
   function readBest(game) {
@@ -100,11 +119,11 @@
 
   function makeGameState(game) {
     const best = readBest(game);
-    const state = { state: 'ready', score: 0, lives: 3, best: best, lastFrame: 0, elapsed: 0, accumulator: 0 };
+    const state = { state: 'ready', score: 0, lives: 3, best: best, level: 1, lastFrame: 0, elapsed: 0, accumulator: 0 };
     if (game === 'aim') {
-      state.lives = 30;
-      state.target = { x: width / 2, y: height / 2, radius: 34 };
-      state.misses = 0;
+      state.lives = 45;
+      state.levelHits = 0;
+      state.target = { x: width / 2, y: height / 2, radius: 32, color: '#e8c66a' };
     } else if (game === 'tetris') {
       state.board = Array.from({ length: 20 }, function () { return Array(10).fill(0); });
       state.piece = null;
@@ -116,14 +135,32 @@
     } else if (game === 'snake') {
       state.direction = { x: 1, y: 0 };
       state.nextDirection = { x: 1, y: 0 };
+      state.turnQueue = [];
       state.snake = [{ x: 11, y: 9 }, { x: 10, y: 9 }, { x: 9, y: 9 }];
       state.food = { x: 17, y: 9 };
       state.lives = 1;
-    } else if (game === 'pong') {
+    } else if (game === 'breakout') {
       state.playerX = width / 2;
-      state.cpuX = width / 2;
-      state.ball = { x: width / 2, y: height / 2, vx: 300, vy: 290 };
-      state.lives = 5;
+      state.ball = { x: width / 2, y: height - 110, vx: 270, vy: -340, radius: 9 };
+      state.bricks = createBricks(state.level);
+    } else if (game === 'invaders') {
+      state.playerX = width / 2;
+      state.invaders = [];
+      state.bullets = [];
+      state.enemyBullets = [];
+      state.enemyDirection = 1;
+      state.enemyFireTimer = 1;
+      state.fireCooldown = 0;
+      state.playerHitTimer = 0;
+      state.lives = 3;
+      spawnInvaders(state);
+    } else if (game === 'dodge') {
+      state.player = { x: width / 2, y: height - 90, radius: 18 };
+      state.hazards = [];
+      state.spawnTimer = 0;
+      state.lives = 3;
+      state.scoreTimer = 0;
+      state.hitCooldown = 0;
     }
     return state;
   }
@@ -138,14 +175,19 @@
     document.body.dataset.pageTitle = game === 'starfall' ? 'arcade' : game;
     document.body.dataset.activeGame = game;
     document.body.classList.toggle('mini-game-active', game !== 'starfall');
+    controlButtons.forEach(function (button) {
+      button.hidden = !touchActions[game].includes(button.dataset.gameAction);
+    });
     cancelAnimationFrame(animationFrame);
     animationFrame = 0;
     pointerStart = null;
+    heldKeys.clear();
 
     if (game === 'starfall') {
       miniGame = null;
       scoreLabel.textContent = 'score';
       livesLabel.textContent = 'lives';
+      if (levelGroup) levelGroup.hidden = true;
       mobileHint.textContent = 'tap start · drag to steer · hold fire · pause above';
       status.textContent = 'click the game to start.';
       window.dispatchEvent(new CustomEvent('arcade:select', { detail: { game: game } }));
@@ -155,17 +197,21 @@
 
     window.dispatchEvent(new CustomEvent('arcade:select', { detail: { game: game } }));
     miniGame = makeGameState(game);
-    scoreLabel.textContent = game === 'aim' ? 'hits' : game === 'tetris' ? 'score' : 'score';
-    livesLabel.textContent = game === 'aim' ? 'time' : game === 'tetris' ? 'lines' : game === 'pong' ? 'lives' : 'length';
+    scoreLabel.textContent = game === 'aim' ? 'hits' : 'score';
+    livesLabel.textContent = game === 'aim' ? 'time' : game === 'tetris' ? 'lines' : game === 'snake' ? 'length' : 'lives';
     mobileHint.textContent = game === 'aim'
-      ? 'tap the targets · score as many hits as you can'
+      ? 'tap the color target · hit 8 to level up'
       : game === 'tetris'
         ? 'use arrows or buttons · rotate and drop blocks'
         : game === 'snake'
           ? 'swipe to steer · use arrows or direction buttons'
-          : 'move the paddle · return the ball to the machine';
+          : game === 'breakout'
+            ? 'move the paddle · clear every block'
+            : game === 'invaders'
+              ? 'move and fire · protect the signal'
+              : 'move in any direction · dodge the debris';
     status.textContent = games[game].description + '. click or tap the field to start.' + (storageWarning ? ' ' + storageWarning : '');
-    if (game === 'snake') livesOutput.textContent = '—';
+    canvas.focus({ preventScroll: true });
     draw();
     updateHud();
     updatePauseButton();
@@ -256,26 +302,9 @@
     const target = miniGame.target;
     context.beginPath();
     context.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
-    context.strokeStyle = '#dedede';
-    context.lineWidth = 3;
-    context.stroke();
-    context.beginPath();
-    context.arc(target.x, target.y, target.radius * 0.62, 0, Math.PI * 2);
-    context.strokeStyle = 'rgba(220, 220, 220, 0.58)';
-    context.lineWidth = 2;
-    context.stroke();
-    context.beginPath();
-    context.arc(target.x, target.y, 3, 0, Math.PI * 2);
-    context.fillStyle = '#ededed';
+    context.fillStyle = target.color;
     context.fill();
-    context.strokeStyle = 'rgba(230, 230, 230, 0.35)';
-    context.beginPath();
-    context.moveTo(target.x - target.radius - 12, target.y);
-    context.lineTo(target.x + target.radius + 12, target.y);
-    context.moveTo(target.x, target.y - target.radius - 12);
-    context.lineTo(target.x, target.y + target.radius + 12);
-    context.stroke();
-    drawText(miniGame.state === 'running' ? String(Math.ceil(miniGame.lives)) + ' SEC' : '30 SEC', width / 2, 54, 17, '#bdbdbd');
+    drawText(miniGame.state === 'running' ? String(Math.ceil(miniGame.lives)) + ' SEC' : '45 SEC', width / 2, 54, 17, '#bdbdbd');
   }
 
   function drawTetris() {
@@ -349,24 +378,221 @@
     context.fillRect(left + miniGame.food.x * cell + 6, top + miniGame.food.y * cell + 6, cell - 12, cell - 12);
   }
 
-  function drawPong() {
-    const left = 210;
-    const right = 990;
-    const paddleWidth = 145;
-    context.setLineDash([12, 16]);
-    context.strokeStyle = 'rgba(220, 220, 220, 0.32)';
+  function spawnInvaders(state) {
+    state.invaders = [];
+    for (let row = 0; row < 4; row++) {
+      for (let column = 0; column < 10; column++) {
+        state.invaders.push({ x: 185 + column * 86, y: 90 + row * 48, row: row, alive: true });
+      }
+    }
+  }
+
+  function drawDodge() {
+    miniGame.hazards.forEach(function (hazard) {
+      context.beginPath();
+      context.arc(hazard.x, hazard.y, hazard.radius, 0, Math.PI * 2);
+      context.strokeStyle = 'rgba(210, 210, 210, 0.72)';
+      context.lineWidth = 2;
+      context.stroke();
+    });
+    context.fillStyle = '#dedede';
     context.beginPath();
-    context.moveTo(left, height / 2);
-    context.lineTo(right, height / 2);
-    context.stroke();
-    context.setLineDash([]);
-    context.strokeStyle = 'rgba(220, 220, 220, 0.25)';
-    context.strokeRect(left, 44, right - left, height - 88);
+    context.moveTo(miniGame.player.x, miniGame.player.y - 20);
+    context.lineTo(miniGame.player.x - 16, miniGame.player.y + 14);
+    context.lineTo(miniGame.player.x + 16, miniGame.player.y + 14);
+    context.closePath();
+    context.fill();
+    drawText('SURVIVE ' + miniGame.score + ' SEC', width / 2, 48, 15, '#bdbdbd');
+  }
+
+  function drawBreakout() {
+    miniGame.bricks.forEach(function (brick) {
+      if (!brick.active) return;
+      context.fillStyle = brick.color;
+      context.globalAlpha = 0.82;
+      context.fillRect(brick.x, brick.y, 82, 22);
+      context.globalAlpha = 1;
+      context.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      context.strokeRect(brick.x, brick.y, 82, 22);
+    });
     context.fillStyle = '#cfcfcf';
-    context.fillRect(miniGame.cpuX - paddleWidth / 2, 75, paddleWidth, 14);
-    context.fillRect(miniGame.playerX - paddleWidth / 2, height - 89, paddleWidth, 14);
-    context.fillRect(miniGame.ball.x - 8, miniGame.ball.y - 8, 16, 16);
-    drawText(String(miniGame.score), width / 2, height / 2 - 22, 24, '#bdbdbd');
+    context.fillRect(miniGame.playerX - 72, height - 70, 144, 13);
+    context.fillStyle = '#ededed';
+    context.beginPath();
+    context.arc(miniGame.ball.x, miniGame.ball.y, miniGame.ball.radius, 0, Math.PI * 2);
+    context.fill();
+    drawText('BRICKS ' + miniGame.bricks.filter(function (brick) { return brick.active; }).length, width / 2, height - 28, 14, '#a4a4a4');
+  }
+
+  function fireInvaderBullet() {
+    if (!miniGame || selectedGame !== 'invaders' || miniGame.fireCooldown > 0) return;
+    miniGame.bullets.push({ x: miniGame.playerX, y: height - 90 });
+    miniGame.fireCooldown = 0.24;
+  }
+
+  function drawInvaders() {
+    miniGame.invaders.forEach(function (enemy) {
+      if (!enemy.alive) return;
+      context.fillStyle = colors[enemy.row % colors.length];
+      context.fillRect(enemy.x - 18, enemy.y - 12, 36, 24);
+      context.fillStyle = '#050607';
+      context.fillRect(enemy.x - 11, enemy.y - 4, 5, 5);
+      context.fillRect(enemy.x + 6, enemy.y - 4, 5, 5);
+    });
+    miniGame.bullets.forEach(function (bullet) { drawBullet(bullet.x, bullet.y, '#ededed'); });
+    miniGame.enemyBullets.forEach(function (bullet) { drawBullet(bullet.x, bullet.y, '#969696'); });
+    context.fillStyle = '#d5d5d5';
+    context.beginPath();
+    context.moveTo(miniGame.playerX, height - 68);
+    context.lineTo(miniGame.playerX - 22, height - 34);
+    context.lineTo(miniGame.playerX + 22, height - 34);
+    context.closePath();
+    context.fill();
+  }
+
+  function drawBullet(x, y, color) {
+    context.fillStyle = color;
+    context.fillRect(x - 3, y - 10, 6, 20);
+  }
+
+  function moveBreakout(delta) {
+    const playerX = miniGame.playerX;
+    miniGame.playerX = Math.max(82, Math.min(width - 82, playerX + heldAxis() * 520 * delta));
+    const ball = miniGame.ball;
+    ball.x += ball.vx * delta;
+    ball.y += ball.vy * delta;
+    if (ball.x < ball.radius || ball.x > width - ball.radius) ball.vx *= -1;
+    if (ball.y < ball.radius) ball.vy = Math.abs(ball.vy);
+    if (ball.vy > 0 && ball.y + ball.radius >= height - 70 && ball.y < height - 50 &&
+      ball.x >= miniGame.playerX - 82 && ball.x <= miniGame.playerX + 82) {
+      const offset = (ball.x - miniGame.playerX) / 82;
+      ball.vx = offset * 430;
+      ball.vy = -Math.max(280, Math.abs(ball.vy));
+    }
+    miniGame.bricks.forEach(function (brick) {
+      if (!brick.active || ball.x + ball.radius < brick.x || ball.x - ball.radius > brick.x + 82 ||
+        ball.y + ball.radius < brick.y || ball.y - ball.radius > brick.y + 22) return;
+      brick.active = false;
+      ball.vy *= -1;
+      setScore(miniGame.score + 10);
+    });
+    if (!miniGame.bricks.some(function (brick) { return brick.active; })) {
+      miniGame.level += 1;
+      resetBricks();
+      status.textContent = 'wall cleared. level ' + miniGame.level + '.';
+    }
+    if (ball.y > height + ball.radius) {
+      miniGame.lives -= 1;
+      if (miniGame.lives <= 0) finishGame('run over. final score: ' + miniGame.score + '.');
+      else {
+        ball.x = miniGame.playerX;
+        ball.y = height - 110;
+        ball.vx = 260;
+        ball.vy = -330;
+      }
+    }
+  }
+
+  function moveInvaders(delta) {
+    miniGame.playerX = Math.max(32, Math.min(width - 32, miniGame.playerX + heldAxis() * 440 * delta));
+    miniGame.fireCooldown = Math.max(0, miniGame.fireCooldown - delta);
+    if (heldKeys.has(' ') || heldKeys.has('space')) fireInvaderBullet();
+    miniGame.invaders.forEach(function (enemy) { enemy.x += miniGame.enemyDirection * (100 + miniGame.level * 18) * delta; });
+    const living = miniGame.invaders.filter(function (enemy) { return enemy.alive; });
+    if (living.some(function (enemy) { return enemy.x < 35 || enemy.x > width - 35; })) {
+      miniGame.enemyDirection *= -1;
+      living.forEach(function (enemy) { enemy.y += 22; });
+      if (living.some(function (enemy) { return enemy.y >= height - 115; })) finishGame('the signal was overrun. final score: ' + miniGame.score + '.');
+    }
+    miniGame.bullets.forEach(function (bullet) { bullet.y -= 560 * delta; });
+    miniGame.bullets = miniGame.bullets.filter(function (bullet) {
+      const target = miniGame.invaders.find(function (enemy) {
+        return enemy.alive && Math.abs(enemy.x - bullet.x) < 23 && Math.abs(enemy.y - bullet.y) < 20;
+      });
+      if (target) {
+        target.alive = false;
+        setScore(miniGame.score + 10);
+        return false;
+      }
+      return bullet.y > 0;
+    });
+    miniGame.enemyFireTimer -= delta;
+    if (miniGame.enemyFireTimer <= 0 && living.length) {
+      const shooter = living[Math.floor(Math.random() * living.length)];
+      miniGame.enemyBullets.push({ x: shooter.x, y: shooter.y + 18 });
+      miniGame.enemyFireTimer = Math.max(0.38, 1.05 - miniGame.level * 0.04);
+    }
+    miniGame.enemyBullets.forEach(function (bullet) { bullet.y += (190 + miniGame.level * 16) * delta; });
+    miniGame.enemyBullets = miniGame.enemyBullets.filter(function (bullet) {
+      if (bullet.y >= height - 78 && Math.abs(bullet.x - miniGame.playerX) < 28 && miniGame.playerHitTimer <= 0) {
+        miniGame.lives -= 1;
+        miniGame.playerHitTimer = 1;
+        if (miniGame.lives <= 0) finishGame('defense failed. final score: ' + miniGame.score + '.');
+        return false;
+      }
+      return bullet.y < height;
+    });
+    miniGame.playerHitTimer = Math.max(0, miniGame.playerHitTimer - delta);
+    if (!living.length) {
+      miniGame.level += 1;
+      spawnInvaders(miniGame);
+      status.textContent = 'wave cleared. wave ' + miniGame.level + ' incoming.';
+    }
+  }
+
+  function moveDodge(delta) {
+    const horizontal = (heldKeys.has('arrowright') || heldKeys.has('d') ? 1 : 0) - (heldKeys.has('arrowleft') || heldKeys.has('a') ? 1 : 0);
+    const vertical = (heldKeys.has('arrowdown') || heldKeys.has('s') ? 1 : 0) - (heldKeys.has('arrowup') || heldKeys.has('w') ? 1 : 0);
+    miniGame.player.x = Math.max(25, Math.min(width - 25, miniGame.player.x + horizontal * 420 * delta));
+    miniGame.player.y = Math.max(35, Math.min(height - 35, miniGame.player.y + vertical * 420 * delta));
+    miniGame.spawnTimer -= delta;
+    miniGame.scoreTimer += delta;
+    miniGame.hitCooldown = Math.max(0, miniGame.hitCooldown - delta);
+    if (miniGame.scoreTimer >= 1) {
+      miniGame.scoreTimer -= 1;
+      setScore(miniGame.score + 1);
+    }
+    if (miniGame.spawnTimer <= 0) {
+      miniGame.hazards.push({
+        x: 25 + Math.random() * (width - 50),
+        y: -24,
+        radius: 10 + Math.random() * 16,
+        speed: 180 + Math.random() * 150 + miniGame.score * 2,
+        drift: (Math.random() - 0.5) * 90
+      });
+      miniGame.spawnTimer = Math.max(0.22, 0.72 - miniGame.score * 0.008);
+    }
+    miniGame.hazards = miniGame.hazards.filter(function (hazard) {
+      hazard.y += hazard.speed * delta;
+      hazard.x += hazard.drift * delta;
+      if (miniGame.hitCooldown <= 0 && Math.hypot(miniGame.player.x - hazard.x, miniGame.player.y - hazard.y) < miniGame.player.radius + hazard.radius) {
+        miniGame.lives -= 1;
+        miniGame.hitCooldown = 1;
+        if (miniGame.lives <= 0) finishGame('lights out. survived ' + miniGame.score + ' seconds.');
+        return false;
+      }
+      return hazard.y < height + hazard.radius;
+    });
+  }
+
+  function heldAxis() {
+    return (heldKeys.has('arrowright') || heldKeys.has('d') ? 1 : 0) - (heldKeys.has('arrowleft') || heldKeys.has('a') ? 1 : 0);
+  }
+
+  function resetBricks() {
+    miniGame.bricks = createBricks(miniGame.level);
+    miniGame.ball.x = miniGame.playerX;
+    miniGame.ball.y = height - 110;
+    miniGame.ball.vx = 270 + miniGame.level * 18;
+    miniGame.ball.vy = -(340 + miniGame.level * 18);
+  }
+
+  function createBricks(level) {
+    return Array.from({ length: 5 }, function (_, row) {
+      return Array.from({ length: 10 }, function (_, column) {
+        return { x: 108 + column * 100, y: 105 + row * 37, active: true, color: colors[(row + column + level) % colors.length] };
+      });
+    }).flat();
   }
 
   function draw() {
@@ -375,7 +601,9 @@
     if (selectedGame === 'aim') drawAim();
     else if (selectedGame === 'tetris') drawTetris();
     else if (selectedGame === 'snake') drawSnake();
-    else if (selectedGame === 'pong') drawPong();
+    else if (selectedGame === 'breakout') drawBreakout();
+    else if (selectedGame === 'invaders') drawInvaders();
+    else if (selectedGame === 'dodge') drawDodge();
     drawOverlay();
   }
 
@@ -412,14 +640,33 @@
         miniGame.accumulator = 0;
         moveSnake();
       }
-    } else if (selectedGame === 'pong') {
-      movePong(delta);
+    } else if (selectedGame === 'breakout') {
+      moveBreakout(delta);
+    } else if (selectedGame === 'invaders') {
+      moveInvaders(delta);
+    } else if (selectedGame === 'dodge') {
+      moveDodge(delta);
     }
   }
 
   function randomTarget() {
-    miniGame.target.x = 65 + Math.random() * (width - 130);
-    miniGame.target.y = 80 + Math.random() * (height - 160);
+    miniGame.target.radius = Math.max(14, 32 - (miniGame.level - 1) * 3);
+    miniGame.target.x = miniGame.target.radius + 28 + Math.random() * (width - (miniGame.target.radius + 28) * 2);
+    miniGame.target.y = miniGame.target.radius + 70 + Math.random() * (height - (miniGame.target.radius + 70) * 2);
+    miniGame.target.color = aimColors[(miniGame.level - 1) % aimColors.length];
+  }
+
+  function hitAimTarget() {
+    setScore(miniGame.score + 1);
+    miniGame.levelHits += 1;
+    if (miniGame.levelHits >= 8) {
+      miniGame.level += 1;
+      miniGame.levelHits = 0;
+      miniGame.lives = Math.min(60, miniGame.lives + 5);
+      status.textContent = 'level ' + miniGame.level + '. targets are smaller.';
+    }
+    randomTarget();
+    updateHud();
   }
 
   function randomFood() {
@@ -431,7 +678,10 @@
   }
 
   function moveSnake() {
-    miniGame.direction = miniGame.nextDirection;
+    if (miniGame.turnQueue.length) miniGame.direction = miniGame.turnQueue.shift();
+    miniGame.nextDirection = miniGame.turnQueue.length
+      ? miniGame.turnQueue[miniGame.turnQueue.length - 1]
+      : miniGame.direction;
     const head = miniGame.snake[0];
     const next = { x: head.x + miniGame.direction.x, y: head.y + miniGame.direction.y };
     const eats = next.x === miniGame.food.x && next.y === miniGame.food.y;
@@ -448,37 +698,6 @@
     } else {
       miniGame.snake.pop();
     }
-  }
-
-  function movePong(delta) {
-    const ball = miniGame.ball;
-    const left = 210;
-    const right = 990;
-    const paddleWidth = 145;
-    miniGame.cpuX += (ball.x - miniGame.cpuX) * Math.min(1, delta * 1.7);
-    miniGame.cpuX = Math.max(left + paddleWidth / 2, Math.min(right - paddleWidth / 2, miniGame.cpuX));
-    ball.x += ball.vx * delta;
-    ball.y += ball.vy * delta;
-    if (ball.x < left + 8 || ball.x > right - 8) ball.vx *= -1;
-    if (ball.y < 89 && ball.x > miniGame.cpuX - paddleWidth / 2 && ball.x < miniGame.cpuX + paddleWidth / 2 && ball.vy < 0) {
-      ball.vy = Math.abs(ball.vy);
-      ball.vx += (ball.x - miniGame.cpuX) * 1.2;
-    }
-    if (ball.y > height - 89 && ball.x > miniGame.playerX - paddleWidth / 2 && ball.x < miniGame.playerX + paddleWidth / 2 && ball.vy > 0) {
-      ball.vy = -Math.abs(ball.vy);
-      ball.vx += (ball.x - miniGame.playerX) * 1.2;
-      setScore(miniGame.score + 10);
-    }
-    if (ball.y < 30) ball.vy = Math.abs(ball.vy);
-    if (ball.y > height + 20) {
-      miniGame.lives -= 1;
-      if (miniGame.lives <= 0) finishGame('match over. final score: ' + miniGame.score + '.');
-      else resetBall(-1);
-    }
-  }
-
-  function resetBall(direction) {
-    miniGame.ball = { x: width / 2, y: height / 2, vx: (Math.random() > 0.5 ? 1 : -1) * 260, vy: direction * 290 };
   }
 
   function spawnPiece(state) {
@@ -560,11 +779,30 @@
         left: { x: -1, y: 0 }, right: { x: 1, y: 0 }, up: { x: 0, y: -1 }, down: { x: 0, y: 1 }
       };
       const direction = directions[key];
-      if (direction && (direction.x !== -miniGame.direction.x || direction.y !== -miniGame.direction.y)) miniGame.nextDirection = direction;
-    } else if (selectedGame === 'pong') {
-      if (key === 'left') miniGame.playerX -= 70;
-      else if (key === 'right') miniGame.playerX += 70;
-      miniGame.playerX = Math.max(285, Math.min(915, miniGame.playerX));
+      const queued = miniGame.turnQueue[miniGame.turnQueue.length - 1];
+      const reversesCurrent = direction && direction.x === -miniGame.direction.x && direction.y === -miniGame.direction.y;
+      const repeatsQueued = direction && queued && direction.x === queued.x && direction.y === queued.y;
+      const cancelsQueuedTurn = direction && queued && direction.x === -queued.x && direction.y === -queued.y;
+      if (direction && !reversesCurrent && !repeatsQueued) {
+        if (cancelsQueuedTurn) miniGame.turnQueue[miniGame.turnQueue.length - 1] = direction;
+        else if (miniGame.turnQueue.length < 2) miniGame.turnQueue.push(direction);
+      }
+    } else if (selectedGame === 'breakout') {
+      if (key === 'left') miniGame.playerX -= 55;
+      else if (key === 'right') miniGame.playerX += 55;
+      miniGame.playerX = Math.max(82, Math.min(width - 82, miniGame.playerX));
+    } else if (selectedGame === 'invaders') {
+      if (key === 'left') miniGame.playerX -= 45;
+      else if (key === 'right') miniGame.playerX += 45;
+      else if (key === 'fire') fireInvaderBullet();
+      miniGame.playerX = Math.max(32, Math.min(width - 32, miniGame.playerX));
+    } else if (selectedGame === 'dodge') {
+      if (key === 'left') miniGame.player.x -= 45;
+      else if (key === 'right') miniGame.player.x += 45;
+      else if (key === 'up') miniGame.player.y -= 45;
+      else if (key === 'down') miniGame.player.y += 45;
+      miniGame.player.x = Math.max(25, Math.min(width - 25, miniGame.player.x));
+      miniGame.player.y = Math.max(35, Math.min(height - 35, miniGame.player.y));
     }
     draw();
   }
@@ -579,7 +817,14 @@
 
   canvas.addEventListener('pointermove', function (event) {
     if (event.pointerType === 'touch' && !document.body.classList.contains('touch-device')) document.body.classList.add('touch-device');
-    if (selectedGame === 'pong' && miniGame) miniGame.playerX = Math.max(285, Math.min(915, pointerPosition(event).x));
+    if (!miniGame || miniGame.state !== 'running') return;
+    if (selectedGame === 'breakout' || selectedGame === 'invaders') {
+      miniGame.playerX = Math.max(32, Math.min(width - 32, pointerPosition(event).x));
+    } else if (selectedGame === 'dodge') {
+      const point = pointerPosition(event);
+      miniGame.player.x = Math.max(25, Math.min(width - 25, point.x));
+      miniGame.player.y = Math.max(35, Math.min(height - 35, point.y));
+    }
   });
 
   canvas.addEventListener('pointerdown', function (event) {
@@ -597,11 +842,14 @@
     if (selectedGame === 'aim') {
       const target = miniGame.target;
       if (Math.hypot(point.x - target.x, point.y - target.y) <= target.radius) {
-        setScore(miniGame.score + 1);
-        randomTarget();
+        hitAimTarget();
       }
-    } else if (selectedGame === 'pong') {
-      miniGame.playerX = Math.max(285, Math.min(915, point.x));
+    } else if (selectedGame === 'breakout' || selectedGame === 'invaders') {
+      miniGame.playerX = Math.max(32, Math.min(width - 32, point.x));
+      if (selectedGame === 'invaders') fireInvaderBullet();
+    } else if (selectedGame === 'dodge') {
+      miniGame.player.x = Math.max(25, Math.min(width - 25, point.x));
+      miniGame.player.y = Math.max(35, Math.min(height - 35, point.y));
     }
     draw();
   });
@@ -621,23 +869,39 @@
 
   window.addEventListener('keydown', function (event) {
     if (selectedGame === 'starfall') return;
-    if (event.key === 'Escape') {
+    const key = event.key.toLowerCase();
+    const code = event.code.toLowerCase();
+    if (key === 'escape') {
       event.preventDefault();
       if (!event.repeat) togglePause();
       return;
     }
+    if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'a', 'd', 'w', 's', ' '].includes(key)) {
+      event.preventDefault();
+      heldKeys.add(key === ' ' ? 'space' : key);
+    }
     if (!miniGame || miniGame.state !== 'running') {
-      if ((event.key === 'Enter' || event.key === ' ') && miniGame && miniGame.state !== 'paused') startGame();
+      if ((key === 'enter' || key === ' ') && miniGame && miniGame.state !== 'paused') startGame();
       return;
     }
-    const keys = {
-      ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'down', ArrowUp: 'rotate',
-      a: 'left', d: 'right', s: 'down', w: 'rotate', ' ': 'drop'
+    if (event.repeat) return;
+    const snakeKeys = {
+      arrowleft: 'left', arrowright: 'right', arrowup: 'up', arrowdown: 'down',
+      a: 'left', d: 'right', w: 'up', s: 'down'
     };
-    if (keys[event.key]) {
-      event.preventDefault();
-      action(keys[event.key]);
-    }
+    const gameKeys = {
+      arrowleft: 'left', arrowright: 'right', arrowdown: 'down',
+      a: 'left', d: 'right', s: 'down'
+    };
+    if (selectedGame === 'snake' && snakeKeys[key]) action(snakeKeys[key]);
+    else if (selectedGame === 'tetris' && (key === 'arrowup' || key === 'w')) action('rotate');
+    else if (gameKeys[key]) action(gameKeys[key]);
+    else if (selectedGame === 'invaders' && (key === ' ' || code === 'space')) action('fire');
+    else if (selectedGame === 'tetris' && (key === ' ' || code === 'space')) action('drop');
+  });
+
+  window.addEventListener('keyup', function (event) {
+    heldKeys.delete(event.key === ' ' ? 'space' : event.key.toLowerCase());
   });
 
   pauseButton.addEventListener('click', function () {
@@ -648,7 +912,10 @@
     button.addEventListener('click', function () {
       if (selectedGame === 'starfall' || !miniGame) return;
       if (miniGame.state !== 'running') startGame();
-      if (miniGame.state === 'running') action(button.dataset.gameAction);
+      if (miniGame.state === 'running') {
+        if (selectedGame === 'invaders' && button.dataset.gameAction === 'fire') action('fire');
+        else action(button.dataset.gameAction);
+      }
     });
   });
 
@@ -659,6 +926,7 @@
   });
 
   window.addEventListener('blur', function () {
+    heldKeys.clear();
     if (miniGame && miniGame.state === 'running') togglePause();
   });
 

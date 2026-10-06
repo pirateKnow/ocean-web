@@ -1085,13 +1085,6 @@ body.game-page .page-header {
 body[data-active-game="aim"] .game-touch-controls,
 body[data-active-game="starfall"] .game-touch-controls { display: none; }
 
-body[data-active-game="snake"] .game-touch-controls [data-game-action="rotate"],
-body[data-active-game="snake"] .game-touch-controls [data-game-action="drop"],
-body[data-active-game="pong"] .game-touch-controls [data-game-action="up"],
-body[data-active-game="pong"] .game-touch-controls [data-game-action="rotate"],
-body[data-active-game="pong"] .game-touch-controls [data-game-action="down"],
-body[data-active-game="pong"] .game-touch-controls [data-game-action="drop"] { display: none; }
-
 .game-screen:active { cursor: crosshair; }
 
 .game-screen:focus-visible {
@@ -1126,7 +1119,7 @@ body[data-active-game="pong"] .game-touch-controls [data-game-action="drop"] { d
 @media (max-width: 900px) {
   .arcade-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .game-menu {
-    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    grid-template-columns: repeat(7, minmax(120px, 1fr));
     gap: 6px;
     overflow-x: auto;
     padding: 8px;
@@ -1142,7 +1135,7 @@ body[data-active-game="pong"] .game-touch-controls [data-game-action="drop"] { d
 @media (max-width: 520px) {
   body.game-page { padding: 14px 14px 10px; }
   .game-hud { font-size: 0.64rem; }
-  .game-menu { grid-template-columns: repeat(5, minmax(112px, 1fr)); margin-inline: -2px; }
+  .game-menu { grid-template-columns: repeat(7, minmax(112px, 1fr)); margin-inline: -2px; }
   .game-menu-item { grid-template-columns: 22px minmax(0, 1fr); gap: 5px; padding-inline: 4px; }
   .game-menu-item strong { font-size: 0.62rem; }
 }

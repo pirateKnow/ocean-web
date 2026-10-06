@@ -7,7 +7,7 @@
   <meta name="description" content="a small asteroid arcade game by ocean.">
   <link rel="icon" type="image/png" href="assets/icons/favicon.png?v=20261006">
   <link rel="preload" as="image" href="assets/images/fondo.jpg">
-  <link rel="stylesheet" href="css/style.css?v=20261006-arcade">
+  <link rel="stylesheet" href="css/style.css?v=20261006-arcade4">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -44,8 +44,14 @@
         <button class="game-menu-item" type="button" data-game="snake" aria-pressed="false">
           <span class="game-menu-number">04</span><span><strong>snake</strong><small>collect & survive</small></span>
         </button>
-        <button class="game-menu-item" type="button" data-game="pong" aria-pressed="false">
-          <span class="game-menu-number">05</span><span><strong>blackout pong</strong><small>beat the machine</small></span>
+        <button class="game-menu-item" type="button" data-game="breakout" aria-pressed="false">
+          <span class="game-menu-number">05</span><span><strong>breakout</strong><small>crack the wall</small></span>
+        </button>
+        <button class="game-menu-item" type="button" data-game="invaders" aria-pressed="false">
+          <span class="game-menu-number">06</span><span><strong>void patrol</strong><small>defend the signal</small></span>
+        </button>
+        <button class="game-menu-item" type="button" data-game="dodge" aria-pressed="false">
+          <span class="game-menu-number">07</span><span><strong>last light</strong><small>dodge the debris</small></span>
         </button>
       </nav>
 
@@ -54,6 +60,7 @@
           <div class="game-hud" aria-label="game stats">
             <span><span id="game-score-label">score</span> <strong id="game-score">0</strong></span>
             <span><span id="game-lives-label">lives</span> <strong id="game-lives">3</strong></span>
+            <span id="game-level-group" hidden>level <strong id="game-level">1</strong></span>
             <span>best <strong id="game-best">0</strong></span>
             <button class="game-pause" id="game-pause" type="button" disabled>pause</button>
           </div>
@@ -67,6 +74,7 @@
             <button type="button" data-game-action="down" aria-label="move down">↓</button>
             <button type="button" data-game-action="right" aria-label="move right">→</button>
             <button type="button" data-game-action="drop" aria-label="drop piece">drop</button>
+            <button type="button" data-game-action="fire" aria-label="fire">fire</button>
           </div>
           <p class="game-status" id="game-status" role="status" aria-live="polite">click the game to start.</p>
         </section>
@@ -83,7 +91,7 @@
   </main>
 
   <script src="js/script.js?v=20261006-prefixes"></script>
-  <script src="js/game.js?v=20261006-multigame"></script>
-  <script src="js/arcade.js?v=20261006-multigame"></script>
+  <script src="js/game.js?v=20261006-arcade4"></script>
+  <script src="js/arcade.js?v=20261006-arcade4"></script>
 </body>
 </html>
