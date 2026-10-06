@@ -31,7 +31,7 @@
   });
 
   pauseButton.addEventListener('click', function () {
-    togglePause();
+    if (starfallActive) togglePause();
   });
 
   let state = 'ready';
@@ -53,6 +53,7 @@
   let audioContext = null;
   let audioUnavailableReported = false;
   let shakeTimer = 0;
+  let starfallActive = true;
 
   function updateControlMode(isTouch) {
     touchControls = isTouch;
@@ -73,6 +74,20 @@
     pauseButton.textContent = state === 'paused' ? 'resume' : 'pause';
     pauseButton.setAttribute('aria-label', state === 'paused' ? 'resume game' : 'pause game');
   }
+
+  window.addEventListener('arcade:select', function (event) {
+    const activateStarfall = event.detail && event.detail.game === 'starfall';
+    if (!activateStarfall && !starfallActive) return;
+    starfallActive = activateStarfall;
+    firing = false;
+    cancelAnimationFrame(animationFrame);
+    state = 'ready';
+    status.textContent = starfallActive
+      ? (touchControls ? 'tap to start. drag to steer and hold to fire.' : 'click the game to start.')
+      : '';
+    updatePauseButton();
+    draw();
+  });
 
   try {
     best = Number(localStorage.getItem('ocean-arcade-best')) || 0;
@@ -493,6 +508,7 @@
   }
 
   function updatePointer(event) {
+    if (!starfallActive) return;
     if (event.pointerType === 'touch' && !touchControls) updateControlMode(true);
     if (state !== 'running') return;
     setPlayerFromPointer(event);
@@ -506,6 +522,7 @@
 
   canvas.addEventListener('pointermove', updatePointer);
   canvas.addEventListener('pointerdown', function (event) {
+    if (!starfallActive) return;
     event.preventDefault();
     if (event.pointerType === 'touch' && !touchControls) updateControlMode(true);
     prepareAudio();

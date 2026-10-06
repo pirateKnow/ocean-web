@@ -7,12 +7,12 @@
   <meta name="description" content="a small asteroid arcade game by ocean.">
   <link rel="icon" type="image/png" href="assets/icons/favicon.png?v=20261006">
   <link rel="preload" as="image" href="assets/images/fondo.jpg">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20261006-arcade">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
-<body class="game-page" data-page-title="arcade">
+<body class="game-page" data-page-title="arcade" data-active-game="starfall">
   <div class="bg" style="background-image:url('assets/images/fondo.jpg')"></div>
   <div class="noise"></div>
   <div class="scanlines"></div>
@@ -21,7 +21,7 @@
     <header class="page-header">
       <div>
         <p class="eyebrow">~/ocean/arcade</p>
-        <h1 class="title">star<span>fall</span></h1>
+        <h1 class="title" id="arcade-title">star<span>fall</span></h1>
       </div>
       <a class="back-link" href="index.html">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>
@@ -29,29 +29,61 @@
       </a>
     </header>
 
-    <section class="game-panel" aria-label="arcade game">
-      <div class="game-hud" aria-label="game stats">
-        <span>score <strong id="game-score">0</strong></span>
-        <span>lives <strong id="game-lives">3</strong></span>
-        <span>best <strong id="game-best">0</strong></span>
-        <button class="game-pause" id="game-pause" type="button" disabled>pause</button>
+    <div class="arcade-layout">
+      <nav class="game-menu" aria-label="arcade games">
+        <p class="game-menu-heading">select a game</p>
+        <button class="game-menu-item" type="button" data-game="starfall" aria-pressed="true">
+          <span class="game-menu-number">01</span><span><strong>starfall</strong><small>asteroid survival</small></span>
+        </button>
+        <button class="game-menu-item" type="button" data-game="aim" aria-pressed="false">
+          <span class="game-menu-number">02</span><span><strong>aim lab</strong><small>precision practice</small></span>
+        </button>
+        <button class="game-menu-item" type="button" data-game="tetris" aria-pressed="false">
+          <span class="game-menu-number">03</span><span><strong>blockfall</strong><small>stack the signal</small></span>
+        </button>
+        <button class="game-menu-item" type="button" data-game="snake" aria-pressed="false">
+          <span class="game-menu-number">04</span><span><strong>snake</strong><small>collect & survive</small></span>
+        </button>
+        <button class="game-menu-item" type="button" data-game="pong" aria-pressed="false">
+          <span class="game-menu-number">05</span><span><strong>blackout pong</strong><small>beat the machine</small></span>
+        </button>
+      </nav>
+
+      <div class="arcade-stage">
+        <section class="game-panel" aria-label="arcade game">
+          <div class="game-hud" aria-label="game stats">
+            <span><span id="game-score-label">score</span> <strong id="game-score">0</strong></span>
+            <span><span id="game-lives-label">lives</span> <strong id="game-lives">3</strong></span>
+            <span>best <strong id="game-best">0</strong></span>
+            <button class="game-pause" id="game-pause" type="button" disabled>pause</button>
+          </div>
+
+          <canvas class="game-screen" id="game-canvas" width="1200" height="700" tabindex="0" role="application" aria-label="arcade game canvas"></canvas>
+          <p class="game-mobile-hint" id="game-mobile-hint">tap start · drag to steer · hold fire · pause above</p>
+          <div class="game-touch-controls" id="game-touch-controls" aria-label="touch game controls">
+            <button type="button" data-game-action="left" aria-label="move left">←</button>
+            <button type="button" data-game-action="up" aria-label="move up">↑</button>
+            <button type="button" data-game-action="rotate" aria-label="rotate">rotate</button>
+            <button type="button" data-game-action="down" aria-label="move down">↓</button>
+            <button type="button" data-game-action="right" aria-label="move right">→</button>
+            <button type="button" data-game-action="drop" aria-label="drop piece">drop</button>
+          </div>
+          <p class="game-status" id="game-status" role="status" aria-live="polite">click the game to start.</p>
+        </section>
+
+        <footer class="game-footer">
+          <a class="back-link" href="proyectos.html">
+            view projects
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 10.59 5.41 16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+          </a>
+          <span class="footer-copy">ocean.is-a.dev · built in the dark</span>
+        </footer>
       </div>
-
-      <canvas class="game-screen" id="game-canvas" width="1200" height="700" tabindex="0" role="application" aria-label="asteroid arcade game. click to start, move the pointer to steer, click and hold to fire, press escape to pause or resume. bosses appear every 1000 points."></canvas>
-      <p class="game-mobile-hint">tap start · drag to steer · hold fire · pause above</p>
-      <p class="game-status" id="game-status" role="status" aria-live="polite">click the game to start.</p>
-    </section>
-
-    <footer class="game-footer">
-      <a class="back-link" href="proyectos.html">
-        view projects
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 10.59 5.41 16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
-      </a>
-      <span class="footer-copy">ocean.is-a.dev · built in the dark</span>
-    </footer>
+    </div>
   </main>
 
   <script src="js/script.js?v=20261006-prefixes"></script>
-  <script src="js/game.js"></script>
+  <script src="js/game.js?v=20261006-multigame"></script>
+  <script src="js/arcade.js?v=20261006-multigame"></script>
 </body>
 </html>

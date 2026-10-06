@@ -915,6 +915,87 @@ body.game-page .page-header {
   padding-bottom: 10px;
 }
 
+.arcade-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(16px, 2vw, 28px);
+}
+
+.game-menu {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 14px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  background: rgba(10, 10, 14, 0.58);
+}
+
+.game-menu-heading {
+  padding: 2px 5px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 0.65rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.game-menu-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 54px;
+  padding: 7px 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.game-menu-item:hover,
+.game-menu-item[aria-pressed="true"] {
+  border-color: var(--border-2);
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--white);
+}
+
+.game-menu-item[aria-pressed="true"] .game-menu-number { color: var(--white); }
+
+.game-menu-number {
+  color: var(--text-faint);
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+}
+
+.game-menu-item strong,
+.game-menu-item small { display: block; }
+
+.game-menu-item strong {
+  overflow: hidden;
+  font-size: 0.69rem;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.game-menu-item small {
+  margin-top: 4px;
+  color: var(--text-faint);
+  font-size: 0.56rem;
+  letter-spacing: 0.015em;
+}
+
+.arcade-stage { min-width: 0; }
+
 .game-panel {
   position: relative;
   width: min(100%, calc(var(--game-board-width) + var(--game-panel-padding) + var(--game-panel-padding) + 2px));
@@ -986,6 +1067,31 @@ body.game-page .page-header {
 
 .game-mobile-hint { display: none; }
 
+.game-touch-controls { display: none; }
+
+.game-touch-controls button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border-2);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--white);
+  font: inherit;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  touch-action: manipulation;
+}
+
+body[data-active-game="aim"] .game-touch-controls,
+body[data-active-game="starfall"] .game-touch-controls { display: none; }
+
+body[data-active-game="snake"] .game-touch-controls [data-game-action="rotate"],
+body[data-active-game="snake"] .game-touch-controls [data-game-action="drop"],
+body[data-active-game="pong"] .game-touch-controls [data-game-action="up"],
+body[data-active-game="pong"] .game-touch-controls [data-game-action="rotate"],
+body[data-active-game="pong"] .game-touch-controls [data-game-action="down"],
+body[data-active-game="pong"] .game-touch-controls [data-game-action="drop"] { display: none; }
+
 .game-screen:active { cursor: crosshair; }
 
 .game-screen:focus-visible {
@@ -1017,9 +1123,28 @@ body.game-page .page-header {
   border-top: 1px solid var(--border);
 }
 
+@media (max-width: 900px) {
+  .arcade-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .game-menu {
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    gap: 6px;
+    overflow-x: auto;
+    padding: 8px;
+  }
+  .game-menu-heading {
+    grid-column: 1 / -1;
+    padding-bottom: 5px;
+  }
+  .game-menu-item { min-height: 46px; }
+  .game-menu-item small { display: none; }
+}
+
 @media (max-width: 520px) {
   body.game-page { padding: 14px 14px 10px; }
   .game-hud { font-size: 0.64rem; }
+  .game-menu { grid-template-columns: repeat(5, minmax(112px, 1fr)); margin-inline: -2px; }
+  .game-menu-item { grid-template-columns: 22px minmax(0, 1fr); gap: 5px; padding-inline: 4px; }
+  .game-menu-item strong { font-size: 0.62rem; }
 }
 
 @media (max-height: 720px) {
@@ -1065,6 +1190,14 @@ body.game-page .page-header {
     text-align: center;
   }
 
+  .game-touch-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 8px;
+  }
+
   .game-footer { margin-top: 8px; }
 }
 
@@ -1100,7 +1233,18 @@ body.touch-device .game-mobile-hint {
   text-align: center;
 }
 
+body.touch-device .game-touch-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 8px;
+}
+
 body.touch-device .game-footer { margin-top: 8px; }
+
+body.touch-device[data-active-game="aim"] .game-touch-controls,
+body.touch-device[data-active-game="starfall"] .game-touch-controls { display: none; }
 
 @media (max-height: 500px) and (pointer: coarse), (max-height: 500px) and (any-pointer: coarse) {
   body.game-page { padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: max(6px, env(safe-area-inset-bottom)); }
@@ -1112,22 +1256,27 @@ body.touch-device .game-footer { margin-top: 8px; }
   .game-hud { margin-bottom: 6px; }
   .game-pause { min-height: 34px; }
   .game-mobile-hint { display: none; }
+  .game-touch-controls { display: none; }
   .game-footer { margin-top: 5px; padding-top: 6px; }
 }
 
 @media (max-height: 500px) {
   body.touch-device.game-page { padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: max(6px, env(safe-area-inset-bottom)); }
   body.touch-device .game-shell {
-    --game-panel-padding: 8px;
-    --game-board-width: min(calc(100vw - 20px - env(safe-area-inset-left) - env(safe-area-inset-right)), max(220px, calc((100svh - 190px) * 12 / 7)));
+    --game-panel-padding: 6px;
+    --game-board-width: min(calc(100vw - 20px - env(safe-area-inset-left) - env(safe-area-inset-right)), max(180px, calc((100svh - 215px) * 12 / 7)));
   }
   body.game-page .page-header .eyebrow { display: none; }
   body.touch-device.game-page .page-header { margin-bottom: 4px; padding-bottom: 4px; }
   body.touch-device.game-page .page-header .title { font-size: 1.35rem; }
   body.touch-device.game-page .back-link { font-size: 0.68rem; }
+  body.touch-device .game-menu { gap: 4px; padding: 4px; }
+  body.touch-device .game-menu-heading { display: none; }
+  body.touch-device .game-menu-item { min-height: 34px; }
   body.touch-device .game-hud { margin-bottom: 6px; }
   body.touch-device .game-pause { min-height: 34px; }
   body.touch-device .game-mobile-hint { display: none; }
+  body.touch-device .game-touch-controls { display: none; }
   body.touch-device .game-footer { margin-top: 5px; padding-top: 6px; }
 }
 
