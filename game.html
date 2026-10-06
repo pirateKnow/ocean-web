@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>#arcade</title>
   <meta name="description" content="a small asteroid arcade game by ocean.">
   <link rel="icon" type="image/png" href="assets/icons/favicon.png">
@@ -34,9 +34,11 @@
         <span>score <strong id="game-score">0</strong></span>
         <span>lives <strong id="game-lives">3</strong></span>
         <span>best <strong id="game-best">0</strong></span>
+        <button class="game-pause" id="game-pause" type="button" disabled>pause</button>
       </div>
 
       <canvas class="game-screen" id="game-canvas" width="1200" height="700" tabindex="0" role="application" aria-label="asteroid arcade game. click to start, move the pointer to steer, click and hold to fire, press escape to pause or resume. bosses appear every 1000 points."></canvas>
+      <p class="game-mobile-hint">tap start · drag to steer · hold fire · pause above</p>
       <p class="game-status" id="game-status" role="status" aria-live="polite">click the game to start.</p>
     </section>
 

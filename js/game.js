@@ -4,9 +4,10 @@
   const scoreOutput = document.getElementById('game-score');
   const livesOutput = document.getElementById('game-lives');
   const bestOutput = document.getElementById('game-best');
+  const pauseButton = document.getElementById('game-pause');
   const gamePanel = canvas && canvas.closest('.game-panel');
 
-  if (!canvas || !status || !scoreOutput || !livesOutput || !bestOutput) return;
+  if (!canvas || !status || !scoreOutput || !livesOutput || !bestOutput || !pauseButton) return;
 
   const context = canvas.getContext('2d');
   if (!context) {
@@ -18,6 +19,7 @@
   const width = 1200;
   const height = 700;
   const frameInterval = 1000 / 90;
+  let touchControls = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   const stars = Array.from({ length: 110 }, function (_, index) {
     return {
@@ -26,6 +28,10 @@
       size: index % 6 === 0 ? 2 : 1,
       alpha: 0.25 + (index % 5) * 0.12
     };
+  });
+
+  pauseButton.addEventListener('click', function () {
+    togglePause();
   });
 
   let state = 'ready';
@@ -47,6 +53,26 @@
   let audioContext = null;
   let audioUnavailableReported = false;
   let shakeTimer = 0;
+
+  function updateControlMode(isTouch) {
+    touchControls = isTouch;
+    document.body.classList.toggle('touch-device', touchControls);
+    canvas.setAttribute('aria-label', touchControls
+      ? 'asteroid arcade game. tap to start, drag to steer, hold to fire, use the pause button to pause or resume. bosses appear every 1000 points.'
+      : 'asteroid arcade game. click to start, move the pointer to steer, click and hold to fire, press escape to pause or resume. bosses appear every 1000 points.');
+    if (state === 'ready') {
+      status.textContent = touchControls
+        ? 'tap to start. drag to steer and hold to fire.'
+        : 'click the game to start.';
+    }
+    draw();
+  }
+
+  function updatePauseButton() {
+    pauseButton.disabled = state !== 'running' && state !== 'paused';
+    pauseButton.textContent = state === 'paused' ? 'resume' : 'pause';
+    pauseButton.setAttribute('aria-label', state === 'paused' ? 'resume game' : 'pause game');
+  }
 
   try {
     best = Number(localStorage.getItem('ocean-arcade-best')) || 0;
@@ -258,7 +284,12 @@
       context.fillText(message, width / 2, height / 2 - 6);
       context.fillStyle = '#a4a4a4';
       context.font = '14px "JetBrains Mono", monospace';
-      const hint = state === 'ready' ? 'click to start' : state === 'paused' ? 'click or press esc to resume' : 'click to play again';
+      const action = touchControls ? 'tap' : 'click';
+      const hint = state === 'ready'
+        ? action + ' to start'
+        : state === 'paused'
+          ? (touchControls ? 'tap resume or use pause button' : 'click or press esc to resume')
+          : action + ' to play again';
       context.fillText(hint, width / 2, height / 2 + 24);
     }
   }
@@ -287,6 +318,7 @@
     state = 'over';
     firing = false;
     status.textContent = 'run over. final score: ' + score + '.';
+    updatePauseButton();
     draw();
   }
 
@@ -304,7 +336,10 @@
     shotTimer = 0;
     state = 'running';
     firing = false;
-    status.textContent = 'game in progress. press escape to pause.';
+    status.textContent = touchControls
+      ? 'game in progress. drag to steer and hold to fire.'
+      : 'game in progress. press escape to pause.';
+    updatePauseButton();
     updateHud();
     lastFrame = performance.now();
     cancelAnimationFrame(animationFrame);
@@ -345,11 +380,15 @@
       state = 'paused';
       firing = false;
       status.textContent = 'game paused.';
+      updatePauseButton();
       cancelAnimationFrame(animationFrame);
       draw();
     } else if (state === 'paused') {
       state = 'running';
-      status.textContent = 'game in progress. press escape to pause.';
+      status.textContent = touchControls
+        ? 'game in progress. drag to steer and hold to fire.'
+        : 'game in progress. press escape to pause.';
+      updatePauseButton();
       lastFrame = performance.now();
       animationFrame = requestAnimationFrame(loop);
     }
@@ -454,6 +493,7 @@
   }
 
   function updatePointer(event) {
+    if (event.pointerType === 'touch' && !touchControls) updateControlMode(true);
     if (state !== 'running') return;
     setPlayerFromPointer(event);
   }
@@ -467,6 +507,7 @@
   canvas.addEventListener('pointermove', updatePointer);
   canvas.addEventListener('pointerdown', function (event) {
     event.preventDefault();
+    if (event.pointerType === 'touch' && !touchControls) updateControlMode(true);
     prepareAudio();
     if (state === 'paused') {
       togglePause();
@@ -505,5 +546,7 @@
     if (document.hidden && state === 'running') togglePause();
   });
 
+  updatePauseButton();
+  updateControlMode(touchControls);
   draw();
 })();
