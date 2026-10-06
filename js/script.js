@@ -8,7 +8,7 @@
   const holdFull = 2200;
   const holdEmpty = 700;
 
-  function startTypewriter(text, update, delay) {
+  function startTypewriter(text, update, delay, minPosition, characterDeleteSpeed) {
     let position = 0;
     let deleting = false;
 
@@ -27,22 +27,23 @@
 
       position--;
       update(text.slice(0, position));
-      if (position === 0) {
+      if (position === minPosition) {
         deleting = false;
         setTimeout(tick, holdEmpty);
         return;
       }
-      setTimeout(tick, deleteSpeed);
+      setTimeout(tick, characterDeleteSpeed);
     }
 
     setTimeout(tick, delay);
   }
 
   const pageName = document.body.dataset.pageTitle || 'home';
-  const titleText = pageName === 'home' ? '@ocean' : '#' + pageName;
+  const isHome = pageName === 'home';
+  const titleText = isHome ? '@ocean' : '#' + pageName;
   startTypewriter(titleText, function (value) {
     document.title = value || ' ';
-  }, 500);
+  }, 500, isHome ? 1 : 0, isHome ? typeSpeed : deleteSpeed);
 
   const toast = document.getElementById('toast');
 
