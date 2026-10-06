@@ -10,8 +10,10 @@
   const levelGroup = document.getElementById('game-level-group');
   const levelOutput = document.getElementById('game-level');
   const pauseButton = document.getElementById('game-pause');
+  const gameHud = document.querySelector('.game-hud');
   const title = document.getElementById('arcade-title');
   const mobileHint = document.getElementById('game-mobile-hint');
+  const signalScreen = document.getElementById('signal-screen');
   const menuButtons = Array.from(document.querySelectorAll('[data-game]'));
   const controlButtons = Array.from(document.querySelectorAll('[data-game-action]'));
 
@@ -30,7 +32,6 @@
     snake: { title: 'snake', description: 'collect & survive', controls: 'use arrows or wasd to steer.' },
     breakout: { title: 'breakout', description: 'crack the wall', controls: 'move with left/right or follow with the pointer.' },
     invaders: { title: 'void patrol', description: 'defend the signal', controls: 'move with left/right and fire with space.' },
-    coastline: { title: 'coastline', description: 'night drive', controls: 'switch lanes with left/right or a/d. avoid traffic and keep moving.' },
     'deep-echo': { title: 'deep echo', description: 'sonar memory', controls: 'listen to the sonar, then repeat the sequence with the arrow keys or buttons.' }
   };
   const touchActions = {
@@ -40,7 +41,6 @@
     snake: ['left', 'up', 'down', 'right'],
     breakout: ['left', 'right'],
     invaders: ['left', 'right', 'fire'],
-    coastline: ['left', 'right'],
     'deep-echo': ['left', 'up', 'down', 'right']
   };
   const pieceShapes = [
@@ -156,17 +156,6 @@
       state.playerHitTimer = 0;
       state.lives = 3;
       spawnInvaders(state);
-    } else if (game === 'coastline') {
-      state.lane = 1;
-      state.visualLane = 1;
-      state.carY = height - 118;
-      state.traffic = [];
-      state.spawnTimer = 0.65;
-      state.scoreTimer = 0;
-      state.roadOffset = 0;
-      state.hitCooldown = 0;
-      state.previousLane = -1;
-      state.lives = 3;
     } else if (game === 'deep-echo') {
       state.sequence = Array.from({ length: 3 }, function () { return Math.floor(Math.random() * 4); });
       state.round = 1;
@@ -183,7 +172,16 @@
   }
 
   function selectGame(game) {
+    if (game === 'signal-check') {
+      selectSignalCheck();
+      return;
+    }
     if (!games[game]) return;
+    if (signalScreen) signalScreen.replaceChildren();
+    if (signalScreen) signalScreen.hidden = true;
+    if (gameHud) gameHud.hidden = false;
+    canvas.hidden = false;
+    mobileHint.hidden = false;
     selectedGame = game;
     menuButtons.forEach(function (button) {
       button.setAttribute('aria-pressed', button.dataset.game === game ? 'true' : 'false');
@@ -199,6 +197,7 @@
     animationFrame = 0;
     pointerStart = null;
     heldKeys.clear();
+    miniGame = null;
 
     if (game === 'starfall') {
       miniGame = null;
@@ -226,13 +225,47 @@
             ? 'move the paddle · clear every block'
             : game === 'invaders'
               ? 'move and fire · protect the signal'
-              : game === 'coastline'
-                ? 'change lanes · avoid traffic · survive the night'
-                : 'listen to the sonar, then repeat its pattern';
+              : 'listen to the sonar, then repeat its pattern';
     status.textContent = games[game].description + '. click or tap the field to start.' + (storageWarning ? ' ' + storageWarning : '');
     canvas.focus({ preventScroll: true });
     draw();
     updateHud();
+    updatePauseButton();
+  }
+
+  function selectSignalCheck() {
+    if (!signalScreen) {
+      console.error('the signal-check screen is missing from the arcade page.');
+      return;
+    }
+    selectedGame = 'signal-check';
+    menuButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', button.dataset.game === selectedGame ? 'true' : 'false');
+    });
+    setTitle('signal check');
+    document.body.dataset.pageTitle = selectedGame;
+    document.body.dataset.activeGame = selectedGame;
+    document.body.classList.add('mini-game-active');
+    cancelAnimationFrame(animationFrame);
+    animationFrame = 0;
+    pointerStart = null;
+    heldKeys.clear();
+    miniGame = null;
+    window.dispatchEvent(new CustomEvent('arcade:select', { detail: { game: selectedGame } }));
+    if (gameHud) gameHud.hidden = true;
+    canvas.hidden = true;
+    mobileHint.hidden = true;
+    controlButtons.forEach(function (button) { button.hidden = true; });
+    signalScreen.replaceChildren();
+    const video = document.createElement('iframe');
+    video.title = 'signal monitor';
+    video.src = 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&controls=0&rel=0&playsinline=1';
+    video.allow = 'autoplay; encrypted-media; picture-in-picture';
+    video.referrerPolicy = 'strict-origin-when-cross-origin';
+    video.setAttribute('allowfullscreen', '');
+    signalScreen.appendChild(video);
+    signalScreen.hidden = false;
+    status.textContent = 'signal check.';
     updatePauseButton();
   }
 
@@ -315,7 +348,7 @@
       ? games[selectedGame].title
       : miniGame.state === 'paused'
         ? 'paused'
-        : selectedGame === 'coastline' ? 'drive over' : selectedGame === 'deep-echo' ? 'echo faded' : 'signal lost';
+        : selectedGame === 'deep-echo' ? 'echo faded' : 'signal lost';
     drawText(heading, width / 2, height / 2 - 10, 28, '#e6e6e6');
     const hint = miniGame.state === 'ready' ? 'click or tap to start' : miniGame.state === 'paused' ? 'press esc or resume' : 'click or tap to play again';
     drawText(hint, width / 2, height / 2 + 28, 15, '#a4a4a4');
@@ -413,77 +446,6 @@
       for (let column = 0; column < 10; column++) {
         state.invaders.push({ x: 185 + column * 86, y: 90 + row * 48, row: row, alive: true });
       }
-    }
-  }
-
-  function drawCoastline() {
-    const roadLeft = 330;
-    const roadWidth = 540;
-    const laneWidth = roadWidth / 3;
-    context.fillStyle = '#0b0d0f';
-    context.fillRect(0, 0, width, height);
-    context.fillStyle = '#151719';
-    context.fillRect(roadLeft, 0, roadWidth, height);
-    context.fillStyle = '#777b7e';
-    context.fillRect(roadLeft - 4, 0, 3, height);
-    context.fillRect(roadLeft + roadWidth + 1, 0, 3, height);
-    context.fillStyle = 'rgba(190, 193, 195, 0.32)';
-    for (let lane = 1; lane < 3; lane++) {
-      const x = roadLeft + lane * laneWidth;
-      for (let y = miniGame.roadOffset - 72; y < height; y += 108) {
-        fillRoundedRect(x - 2, y, 4, 46, 2);
-      }
-    }
-    for (let y = (miniGame.roadOffset * 1.35) % 110 - 110; y < height; y += 110) {
-      context.fillStyle = 'rgba(215, 217, 219, 0.25)';
-      fillRoundedRect(roadLeft - 48, y, 12, 28, 4);
-      fillRoundedRect(roadLeft + roadWidth + 36, y, 12, 28, 4);
-    }
-    miniGame.traffic.forEach(function (car) {
-      drawCar(roadLeft + laneWidth * (car.lane + 0.5), car.y, car.color, false);
-    });
-    drawCar(roadLeft + laneWidth * (miniGame.visualLane + 0.5), miniGame.carY, '#d2d4d5', true);
-    drawText('NIGHT DRIVE  /  ' + String(miniGame.score).padStart(4, '0'), width / 2, 48, 15, '#c4c6c8');
-  }
-
-  function fillRoundedRect(x, y, rectWidth, rectHeight, radius) {
-    const corner = Math.min(radius, rectWidth / 2, rectHeight / 2);
-    context.beginPath();
-    context.moveTo(x + corner, y);
-    context.lineTo(x + rectWidth - corner, y);
-    context.quadraticCurveTo(x + rectWidth, y, x + rectWidth, y + corner);
-    context.lineTo(x + rectWidth, y + rectHeight - corner);
-    context.quadraticCurveTo(x + rectWidth, y + rectHeight, x + rectWidth - corner, y + rectHeight);
-    context.lineTo(x + corner, y + rectHeight);
-    context.quadraticCurveTo(x, y + rectHeight, x, y + rectHeight - corner);
-    context.lineTo(x, y + corner);
-    context.quadraticCurveTo(x, y, x + corner, y);
-    context.closePath();
-    context.fill();
-  }
-
-  function drawCar(x, y, color, player) {
-    const left = x - 25;
-    context.fillStyle = '#08090a';
-    fillRoundedRect(left - 5, y - 29, 7, 24, 3);
-    fillRoundedRect(left + 48, y - 29, 7, 24, 3);
-    fillRoundedRect(left - 5, y + 13, 7, 24, 3);
-    fillRoundedRect(left + 48, y + 13, 7, 24, 3);
-    context.fillStyle = color;
-    fillRoundedRect(left, y - 39, 50, 78, 8);
-    context.fillStyle = player ? '#777d81' : '#34383b';
-    fillRoundedRect(left + 7, y - 25, 36, 21, 5);
-    fillRoundedRect(left + 7, y + 8, 36, 18, 4);
-    context.fillStyle = '#d7d8d9';
-    fillRoundedRect(left + 5, y - 36, 9, 3, 1.5);
-    fillRoundedRect(left + 36, y - 36, 9, 3, 1.5);
-    context.fillStyle = player ? '#f0f0ee' : '#a3a5a6';
-    fillRoundedRect(left + 5, y + 34, 9, 3, 1.5);
-    fillRoundedRect(left + 36, y + 34, 9, 3, 1.5);
-    if (player && miniGame.hitCooldown > 0 && Math.floor(miniGame.hitCooldown * 12) % 2) {
-      context.strokeStyle = '#f0f0ee';
-      context.lineWidth = 2;
-      context.strokeRect(left - 3, y - 42, 56, 84);
     }
   }
 
@@ -669,45 +631,6 @@
     }
   }
 
-  function moveCoastline(delta) {
-    miniGame.roadOffset = (miniGame.roadOffset + (230 + Math.min(miniGame.score, 90) * 2) * delta) % 108;
-    miniGame.visualLane += (miniGame.lane - miniGame.visualLane) * (1 - Math.exp(-12 * delta));
-    miniGame.scoreTimer += delta;
-    miniGame.hitCooldown = Math.max(0, miniGame.hitCooldown - delta);
-    if (miniGame.scoreTimer >= 0.5) {
-      miniGame.scoreTimer -= 0.5;
-      setScore(miniGame.score + 1);
-    }
-    miniGame.spawnTimer -= delta;
-    if (miniGame.spawnTimer <= 0) {
-      let lane = Math.floor(Math.random() * 3);
-      if (lane === miniGame.previousLane && Math.random() < 0.75) lane = (lane + 1 + Math.floor(Math.random() * 2)) % 3;
-      miniGame.previousLane = lane;
-      miniGame.traffic.push({
-        lane: lane,
-        y: -24,
-        color: ['#777b7e', '#929699', '#5c6165'][Math.floor(Math.random() * 3)]
-      });
-      miniGame.spawnTimer = Math.max(0.48, 1.05 - miniGame.score * 0.004);
-    }
-    const speed = 230 + Math.min(miniGame.score, 90) * 2;
-    miniGame.traffic = miniGame.traffic.filter(function (car) {
-      car.y += speed * delta;
-      if (miniGame.hitCooldown <= 0 && Math.abs(car.lane - miniGame.visualLane) < 0.48 && Math.abs(car.y - miniGame.carY) < 74) {
-        miniGame.lives -= 1;
-        miniGame.hitCooldown = 0.9;
-        status.textContent = miniGame.lives ? 'collision. ' + miniGame.lives + ' lives left.' : 'the road goes quiet.';
-        if (miniGame.lives <= 0) finishGame('night drive over. distance: ' + miniGame.score + '.');
-        return false;
-      }
-      return car.y < height + 50;
-    });
-  }
-
-  function moveCoastlineLane(direction) {
-    miniGame.lane = Math.max(0, Math.min(2, miniGame.lane + direction));
-  }
-
   function beginEchoRound() {
     miniGame.inputIndex = 0;
     miniGame.playbackIndex = 0;
@@ -787,7 +710,6 @@
     else if (selectedGame === 'snake') drawSnake();
     else if (selectedGame === 'breakout') drawBreakout();
     else if (selectedGame === 'invaders') drawInvaders();
-    else if (selectedGame === 'coastline') drawCoastline();
     else if (selectedGame === 'deep-echo') drawDeepEcho();
     drawOverlay();
   }
@@ -829,8 +751,6 @@
       moveBreakout(delta);
     } else if (selectedGame === 'invaders') {
       moveInvaders(delta);
-    } else if (selectedGame === 'coastline') {
-      moveCoastline(delta);
     } else if (selectedGame === 'deep-echo') {
       updateEcho(delta);
     }
@@ -983,9 +903,6 @@
       else if (key === 'right') miniGame.playerX += 45;
       else if (key === 'fire') fireInvaderBullet();
       miniGame.playerX = Math.max(32, Math.min(width - 32, miniGame.playerX));
-    } else if (selectedGame === 'coastline') {
-      if (key === 'left') moveCoastlineLane(-1);
-      else if (key === 'right') moveCoastlineLane(1);
     } else if (selectedGame === 'deep-echo') {
       const directions = { up: 0, right: 1, down: 2, left: 3 };
       if (Object.prototype.hasOwnProperty.call(directions, key)) echoInput(directions[key]);
@@ -1006,11 +923,6 @@
     if (!miniGame || miniGame.state !== 'running') return;
     if (selectedGame === 'breakout' || selectedGame === 'invaders') {
       miniGame.playerX = Math.max(32, Math.min(width - 32, pointerPosition(event).x));
-    } else if (selectedGame === 'coastline') {
-      if (event.pointerType !== 'mouse' || event.buttons) {
-        const roadPoint = pointerPosition(event);
-        miniGame.lane = Math.max(0, Math.min(2, Math.floor((roadPoint.x - 330) / 180)));
-      }
     }
   });
 
@@ -1034,8 +946,6 @@
     } else if (selectedGame === 'breakout' || selectedGame === 'invaders') {
       miniGame.playerX = Math.max(32, Math.min(width - 32, point.x));
       if (selectedGame === 'invaders') fireInvaderBullet();
-    } else if (selectedGame === 'coastline') {
-      miniGame.lane = Math.max(0, Math.min(2, Math.floor((point.x - 330) / 180)));
     } else if (selectedGame === 'deep-echo') {
       const dx = point.x - width / 2;
       const dy = point.y - 350;
@@ -1058,7 +968,7 @@
   });
 
   window.addEventListener('keydown', function (event) {
-    if (selectedGame === 'starfall') return;
+    if (selectedGame === 'starfall' || selectedGame === 'signal-check') return;
     const key = event.key.toLowerCase();
     const code = event.code.toLowerCase();
     if (key === 'escape') {
@@ -1097,7 +1007,7 @@
   });
 
   pauseButton.addEventListener('click', function () {
-    if (selectedGame !== 'starfall') togglePause();
+    if (selectedGame !== 'starfall' && selectedGame !== 'signal-check') togglePause();
   });
 
   controlButtons.forEach(function (button) {
