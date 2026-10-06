@@ -4,13 +4,13 @@
 (function () {
   // ===== typewriter del titulo =====
   const typeSpeed = 180;
-  const deleteSpeed = 90;
   const holdFull = 2200;
   const holdEmpty = 700;
 
-  function startTypewriter(text, update, delay, minPosition, characterDeleteSpeed) {
+  function startTypewriter(text, update, delay) {
     let position = 0;
     let deleting = false;
+    const minPosition = 1;
 
     function tick() {
       if (!deleting) {
@@ -32,7 +32,7 @@
         setTimeout(tick, holdEmpty);
         return;
       }
-      setTimeout(tick, characterDeleteSpeed);
+      setTimeout(tick, typeSpeed);
     }
 
     setTimeout(tick, delay);
@@ -42,8 +42,8 @@
   const isHome = pageName === 'home';
   const titleText = isHome ? '@ocean' : '#' + pageName;
   startTypewriter(titleText, function (value) {
-    document.title = value || ' ';
-  }, 500, isHome ? 1 : 0, isHome ? typeSpeed : deleteSpeed);
+    document.title = value;
+  }, 500);
 
   const toast = document.getElementById('toast');
 
