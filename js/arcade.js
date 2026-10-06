@@ -30,7 +30,8 @@
     snake: { title: 'snake', description: 'collect & survive', controls: 'use arrows or wasd to steer.' },
     breakout: { title: 'breakout', description: 'crack the wall', controls: 'move with left/right or follow with the pointer.' },
     invaders: { title: 'void patrol', description: 'defend the signal', controls: 'move with left/right and fire with space.' },
-    cloudcatcher: { title: 'moon bunny', description: 'catch the falling stars', controls: 'move left and right to catch stars. missed stars cost a heart.' }
+    coastline: { title: 'coastline', description: 'night drive', controls: 'switch lanes with left/right or a/d. avoid traffic and keep moving.' },
+    'deep-echo': { title: 'deep echo', description: 'sonar memory', controls: 'listen to the sonar, then repeat the sequence with the arrow keys or buttons.' }
   };
   const touchActions = {
     starfall: [],
@@ -39,7 +40,8 @@
     snake: ['left', 'up', 'down', 'right'],
     breakout: ['left', 'right'],
     invaders: ['left', 'right', 'fire'],
-    cloudcatcher: ['left', 'right']
+    coastline: ['left', 'right'],
+    'deep-echo': ['left', 'up', 'down', 'right']
   };
   const pieceShapes = [
     [[1, 1, 1, 1]],
@@ -52,7 +54,6 @@
   ];
   const colors = ['#d8d8d8', '#9c9c9c', '#bcbcbc', '#858585', '#c8c8c8', '#a6a6a6', '#737373'];
   const aimColors = ['#f7f7f7', '#08090b'];
-  const starColors = ['#fff1b8', '#ffc9df', '#d7c8ff', '#c9efff'];
   let selectedGame = 'starfall';
   let miniGame = null;
   let animationFrame = 0;
@@ -155,11 +156,24 @@
       state.playerHitTimer = 0;
       state.lives = 3;
       spawnInvaders(state);
-    } else if (game === 'cloudcatcher') {
-      state.player = { x: width / 2, y: height - 72, width: 84 };
-      state.fallingStars = [];
-      state.spawnTimer = 0.5;
-      state.lives = 5;
+    } else if (game === 'coastline') {
+      state.lane = 1;
+      state.carY = height - 118;
+      state.traffic = [];
+      state.spawnTimer = 0.65;
+      state.scoreTimer = 0;
+      state.roadOffset = 0;
+      state.hitCooldown = 0;
+      state.previousLane = -1;
+      state.lives = 3;
+    } else if (game === 'deep-echo') {
+      state.sequence = Array.from({ length: 3 }, function () { return Math.floor(Math.random() * 4); });
+      state.round = 1;
+      state.inputIndex = 0;
+      state.playbackIndex = 0;
+      state.echoTimer = 0.45;
+      state.activeEcho = -1;
+      state.inputLocked = true;
     }
     return state;
   }
@@ -208,7 +222,9 @@
             ? 'move the paddle · clear every block'
             : game === 'invaders'
               ? 'move and fire · protect the signal'
-              : 'scoot left and right to catch the falling stars';
+              : game === 'coastline'
+                ? 'change lanes · avoid traffic · survive the night'
+                : 'listen to the sonar, then repeat its pattern';
     status.textContent = games[game].description + '. click or tap the field to start.' + (storageWarning ? ' ' + storageWarning : '');
     canvas.focus({ preventScroll: true });
     draw();
@@ -295,7 +311,7 @@
       ? games[selectedGame].title
       : miniGame.state === 'paused'
         ? 'paused'
-        : selectedGame === 'cloudcatcher' ? 'goodnight' : 'signal lost';
+        : selectedGame === 'coastline' ? 'drive over' : selectedGame === 'deep-echo' ? 'echo faded' : 'signal lost';
     drawText(heading, width / 2, height / 2 - 10, 28, '#e6e6e6');
     const hint = miniGame.state === 'ready' ? 'click or tap to start' : miniGame.state === 'paused' ? 'press esc or resume' : 'click or tap to play again';
     drawText(hint, width / 2, height / 2 + 28, 15, '#a4a4a4');
@@ -396,63 +412,90 @@
     }
   }
 
-  function drawMoonBunny() {
-    miniGame.fallingStars.forEach(function (star) {
-      drawStar(star.x, star.y, star.radius, star.rotation, star.color);
+  function drawCoastline() {
+    const roadLeft = 330;
+    const roadWidth = 540;
+    const laneWidth = roadWidth / 3;
+    context.fillStyle = '#0b0d0f';
+    context.fillRect(0, 0, width, height);
+    context.fillStyle = '#151719';
+    context.fillRect(roadLeft, 0, roadWidth, height);
+    context.fillStyle = '#777b7e';
+    context.fillRect(roadLeft - 4, 0, 3, height);
+    context.fillRect(roadLeft + roadWidth + 1, 0, 3, height);
+    context.fillStyle = 'rgba(190, 193, 195, 0.32)';
+    for (let lane = 1; lane < 3; lane++) {
+      const x = roadLeft + lane * laneWidth;
+      for (let y = miniGame.roadOffset - 72; y < height; y += 108) {
+        context.fillRect(x - 2, y, 4, 46);
+      }
+    }
+    for (let y = (miniGame.roadOffset * 1.35) % 110 - 110; y < height; y += 110) {
+      context.fillStyle = 'rgba(215, 217, 219, 0.25)';
+      context.fillRect(roadLeft - 48, y, 12, 28);
+      context.fillRect(roadLeft + roadWidth + 36, y, 12, 28);
+    }
+    miniGame.traffic.forEach(function (car) {
+      drawCar(roadLeft + laneWidth * (car.lane + 0.5), car.y, car.color, false);
     });
-
-    const bunny = miniGame.player;
-    context.fillStyle = '#f7f5f2';
-    context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-    context.lineWidth = 2;
-    context.beginPath();
-    context.ellipse(bunny.x - 11, bunny.y - 25, 7, 17, -0.12, 0, Math.PI * 2);
-    context.ellipse(bunny.x + 11, bunny.y - 25, 7, 17, 0.12, 0, Math.PI * 2);
-    context.fill();
-    context.stroke();
-
-    context.fillStyle = '#f3b7cc';
-    context.beginPath();
-    context.ellipse(bunny.x - 11, bunny.y - 25, 3, 11, -0.12, 0, Math.PI * 2);
-    context.ellipse(bunny.x + 11, bunny.y - 25, 3, 11, 0.12, 0, Math.PI * 2);
-    context.fill();
-
-    context.fillStyle = '#f7f5f2';
-    context.beginPath();
-    context.arc(bunny.x, bunny.y, 25, 0, Math.PI * 2);
-    context.fill();
-    context.fillStyle = '#202028';
-    context.beginPath();
-    context.arc(bunny.x - 8, bunny.y - 2, 2.5, 0, Math.PI * 2);
-    context.arc(bunny.x + 8, bunny.y - 2, 2.5, 0, Math.PI * 2);
-    context.fill();
-    context.fillStyle = '#efabc3';
-    context.beginPath();
-    context.arc(bunny.x - 15, bunny.y + 7, 4, 0, Math.PI * 2);
-    context.arc(bunny.x + 15, bunny.y + 7, 4, 0, Math.PI * 2);
-    context.fill();
-    drawText('CATCH THE STARS', width / 2, 48, 15, '#f1e6f0');
+    drawCar(roadLeft + laneWidth * (miniGame.lane + 0.5), miniGame.carY, '#d2d4d5', true);
+    drawText('NIGHT DRIVE  /  ' + String(miniGame.score).padStart(4, '0'), width / 2, 48, 15, '#c4c6c8');
   }
 
-  function drawStar(x, y, radius, rotation, color) {
-    context.beginPath();
-    for (let point = 0; point < 10; point++) {
-      const angle = rotation + point * Math.PI / 5 - Math.PI / 2;
-      const distance = point % 2 ? radius * 0.46 : radius;
-      const px = x + Math.cos(angle) * distance;
-      const py = y + Math.sin(angle) * distance;
-      if (point === 0) context.moveTo(px, py);
-      else context.lineTo(px, py);
-    }
-    context.closePath();
+  function drawCar(x, y, color, player) {
+    const left = x - 25;
+    context.fillStyle = '#08090a';
+    context.fillRect(left - 5, y - 29, 7, 24);
+    context.fillRect(left + 48, y - 29, 7, 24);
+    context.fillRect(left - 5, y + 13, 7, 24);
+    context.fillRect(left + 48, y + 13, 7, 24);
     context.fillStyle = color;
-    context.shadowColor = color;
-    context.shadowBlur = 12;
-    context.fill();
-    context.shadowBlur = 0;
-    context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-    context.lineWidth = 1.5;
-    context.stroke();
+    context.fillRect(left, y - 39, 50, 78);
+    context.fillStyle = player ? '#777d81' : '#34383b';
+    context.fillRect(left + 7, y - 25, 36, 21);
+    context.fillRect(left + 7, y + 8, 36, 18);
+    context.fillStyle = '#d7d8d9';
+    context.fillRect(left + 5, y - 36, 9, 3);
+    context.fillRect(left + 36, y - 36, 9, 3);
+    context.fillStyle = player ? '#f0f0ee' : '#a3a5a6';
+    context.fillRect(left + 5, y + 34, 9, 3);
+    context.fillRect(left + 36, y + 34, 9, 3);
+    if (player && miniGame.hitCooldown > 0 && Math.floor(miniGame.hitCooldown * 12) % 2) {
+      context.strokeStyle = '#f0f0ee';
+      context.lineWidth = 2;
+      context.strokeRect(left - 3, y - 42, 56, 84);
+    }
+  }
+
+  function drawDeepEcho() {
+    const nodes = echoNodes();
+    nodes.forEach(function (node, index) {
+      const active = miniGame.activeEcho === index;
+      context.beginPath();
+      context.arc(node.x, node.y, active ? 57 : 49, 0, Math.PI * 2);
+      context.fillStyle = active ? '#f1f1ef' : '#111315';
+      context.fill();
+      context.strokeStyle = active ? '#ffffff' : '#777b7e';
+      context.lineWidth = active ? 3 : 2;
+      context.shadowColor = '#f1f1ef';
+      context.shadowBlur = active ? 18 : 0;
+      context.stroke();
+      context.shadowBlur = 0;
+      drawText(['↑', '→', '↓', '←'][index], node.x, node.y + 10, 30, active ? '#101214' : '#bcbfc1');
+    });
+    drawText('SONAR ECHO  /  WAVE ' + miniGame.round, width / 2, 66, 15, '#c4c6c8');
+    if (!miniGame.inputLocked) {
+      drawText('REPEAT THE SIGNAL', width / 2, height - 58, 13, '#929699');
+    }
+  }
+
+  function echoNodes() {
+    return [
+      { x: width / 2, y: 210 },
+      { x: width / 2 + 165, y: 350 },
+      { x: width / 2, y: 490 },
+      { x: width / 2 - 165, y: 350 }
+    ];
   }
 
   function drawBreakout() {
@@ -590,39 +633,89 @@
     }
   }
 
-  function moveMoonBunny(delta) {
-    miniGame.player.x = Math.max(miniGame.player.width / 2, Math.min(width - miniGame.player.width / 2,
-      miniGame.player.x + heldAxis() * 460 * delta));
+  function moveCoastline(delta) {
+    miniGame.roadOffset = (miniGame.roadOffset + (230 + Math.min(miniGame.score, 90) * 2) * delta) % 108;
+    miniGame.scoreTimer += delta;
+    miniGame.hitCooldown = Math.max(0, miniGame.hitCooldown - delta);
+    if (miniGame.scoreTimer >= 0.5) {
+      miniGame.scoreTimer -= 0.5;
+      setScore(miniGame.score + 1);
+    }
     miniGame.spawnTimer -= delta;
     if (miniGame.spawnTimer <= 0) {
-      miniGame.fallingStars.push({
-        x: 32 + Math.random() * (width - 64),
+      let lane = Math.floor(Math.random() * 3);
+      if (lane === miniGame.previousLane && Math.random() < 0.75) lane = (lane + 1 + Math.floor(Math.random() * 2)) % 3;
+      miniGame.previousLane = lane;
+      miniGame.traffic.push({
+        lane: lane,
         y: -24,
-        radius: 11 + Math.random() * 6,
-        speed: 145 + Math.random() * 55 + Math.min(150, miniGame.score),
-        rotation: Math.random() * Math.PI * 2,
-        spin: (Math.random() - 0.5) * 1.4,
-        color: starColors[Math.floor(Math.random() * starColors.length)]
+        color: ['#777b7e', '#929699', '#5c6165'][Math.floor(Math.random() * 3)]
       });
-      miniGame.spawnTimer = Math.max(0.34, 0.82 - miniGame.score * 0.002);
+      miniGame.spawnTimer = Math.max(0.48, 1.05 - miniGame.score * 0.004);
     }
-    miniGame.fallingStars = miniGame.fallingStars.filter(function (star) {
-      star.y += star.speed * delta;
-      star.rotation += star.spin * delta;
-      if (star.y + star.radius >= miniGame.player.y - 13 &&
-        star.y - star.radius <= miniGame.player.y + 20 &&
-        Math.abs(star.x - miniGame.player.x) <= miniGame.player.width / 2 + star.radius) {
-        setScore(miniGame.score + 10);
-        status.textContent = 'star caught! ' + miniGame.score + ' points.';
-        return false;
-      }
-      if (star.y - star.radius > height) {
+    const speed = 230 + Math.min(miniGame.score, 90) * 2;
+    miniGame.traffic = miniGame.traffic.filter(function (car) {
+      car.y += speed * delta;
+      if (miniGame.hitCooldown <= 0 && car.lane === miniGame.lane && Math.abs(car.y - miniGame.carY) < 74) {
         miniGame.lives -= 1;
-        if (miniGame.lives <= 0) finishGame('the stars went home. final score: ' + miniGame.score + '.');
+        miniGame.hitCooldown = 0.9;
+        status.textContent = miniGame.lives ? 'collision. ' + miniGame.lives + ' lives left.' : 'the road goes quiet.';
+        if (miniGame.lives <= 0) finishGame('night drive over. distance: ' + miniGame.score + '.');
         return false;
       }
-      return true;
+      return car.y < height + 50;
     });
+  }
+
+  function moveCoastlineLane(direction) {
+    miniGame.lane = Math.max(0, Math.min(2, miniGame.lane + direction));
+  }
+
+  function beginEchoRound() {
+    miniGame.inputIndex = 0;
+    miniGame.playbackIndex = 0;
+    miniGame.echoTimer = 0.45;
+    miniGame.activeEcho = -1;
+    miniGame.inputLocked = true;
+    status.textContent = 'listen to the sonar pattern.';
+  }
+
+  function updateEcho(delta) {
+    if (!miniGame.inputLocked) return;
+    miniGame.echoTimer -= delta;
+    if (miniGame.echoTimer > 0) return;
+    if (miniGame.activeEcho !== -1) {
+      miniGame.activeEcho = -1;
+      miniGame.playbackIndex += 1;
+      miniGame.echoTimer = 0.22;
+    } else if (miniGame.playbackIndex < miniGame.sequence.length) {
+      miniGame.activeEcho = miniGame.sequence[miniGame.playbackIndex];
+      miniGame.echoTimer = 0.42;
+    } else {
+      miniGame.inputLocked = false;
+      status.textContent = 'repeat the sonar pattern with the arrows.';
+    }
+  }
+
+  function echoInput(direction) {
+    if (miniGame.inputLocked) return;
+    if (miniGame.sequence[miniGame.inputIndex] !== direction) {
+      miniGame.lives -= 1;
+      if (miniGame.lives <= 0) {
+        finishGame('the sonar faded. final score: ' + miniGame.score + '.');
+        return;
+      }
+      status.textContent = 'signal slipped. listen again.';
+      beginEchoRound();
+      return;
+    }
+    miniGame.inputIndex += 1;
+    if (miniGame.inputIndex >= miniGame.sequence.length) {
+      setScore(miniGame.score + miniGame.round * 100);
+      miniGame.round += 1;
+      miniGame.sequence.push(Math.floor(Math.random() * 4));
+      beginEchoRound();
+    }
   }
 
   function heldAxis() {
@@ -653,7 +746,8 @@
     else if (selectedGame === 'snake') drawSnake();
     else if (selectedGame === 'breakout') drawBreakout();
     else if (selectedGame === 'invaders') drawInvaders();
-    else if (selectedGame === 'cloudcatcher') drawMoonBunny();
+    else if (selectedGame === 'coastline') drawCoastline();
+    else if (selectedGame === 'deep-echo') drawDeepEcho();
     drawOverlay();
   }
 
@@ -694,8 +788,10 @@
       moveBreakout(delta);
     } else if (selectedGame === 'invaders') {
       moveInvaders(delta);
-    } else if (selectedGame === 'cloudcatcher') {
-      moveMoonBunny(delta);
+    } else if (selectedGame === 'coastline') {
+      moveCoastline(delta);
+    } else if (selectedGame === 'deep-echo') {
+      updateEcho(delta);
     }
   }
 
@@ -846,10 +942,12 @@
       else if (key === 'right') miniGame.playerX += 45;
       else if (key === 'fire') fireInvaderBullet();
       miniGame.playerX = Math.max(32, Math.min(width - 32, miniGame.playerX));
-    } else if (selectedGame === 'cloudcatcher') {
-      if (key === 'left') miniGame.player.x -= 54;
-      else if (key === 'right') miniGame.player.x += 54;
-      miniGame.player.x = Math.max(miniGame.player.width / 2, Math.min(width - miniGame.player.width / 2, miniGame.player.x));
+    } else if (selectedGame === 'coastline') {
+      if (key === 'left') moveCoastlineLane(-1);
+      else if (key === 'right') moveCoastlineLane(1);
+    } else if (selectedGame === 'deep-echo') {
+      const directions = { up: 0, right: 1, down: 2, left: 3 };
+      if (Object.prototype.hasOwnProperty.call(directions, key)) echoInput(directions[key]);
     }
     draw();
   }
@@ -867,8 +965,11 @@
     if (!miniGame || miniGame.state !== 'running') return;
     if (selectedGame === 'breakout' || selectedGame === 'invaders') {
       miniGame.playerX = Math.max(32, Math.min(width - 32, pointerPosition(event).x));
-    } else if (selectedGame === 'cloudcatcher') {
-      miniGame.player.x = Math.max(miniGame.player.width / 2, Math.min(width - miniGame.player.width / 2, pointerPosition(event).x));
+    } else if (selectedGame === 'coastline') {
+      if (event.pointerType !== 'mouse' || event.buttons) {
+        const roadPoint = pointerPosition(event);
+        miniGame.lane = Math.max(0, Math.min(2, Math.floor((roadPoint.x - 330) / 180)));
+      }
     }
   });
 
@@ -892,8 +993,12 @@
     } else if (selectedGame === 'breakout' || selectedGame === 'invaders') {
       miniGame.playerX = Math.max(32, Math.min(width - 32, point.x));
       if (selectedGame === 'invaders') fireInvaderBullet();
-    } else if (selectedGame === 'cloudcatcher') {
-      miniGame.player.x = Math.max(miniGame.player.width / 2, Math.min(width - miniGame.player.width / 2, point.x));
+    } else if (selectedGame === 'coastline') {
+      miniGame.lane = Math.max(0, Math.min(2, Math.floor((point.x - 330) / 180)));
+    } else if (selectedGame === 'deep-echo') {
+      const dx = point.x - width / 2;
+      const dy = point.y - 350;
+      echoInput(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0));
     }
     draw();
   });
@@ -937,8 +1042,10 @@
       arrowleft: 'left', arrowright: 'right', arrowdown: 'down',
       a: 'left', d: 'right', s: 'down'
     };
+    const echoKeys = { arrowup: 'up', w: 'up', arrowright: 'right', d: 'right', arrowdown: 'down', s: 'down', arrowleft: 'left', a: 'left' };
     if (selectedGame === 'snake' && snakeKeys[key]) action(snakeKeys[key]);
     else if (selectedGame === 'tetris' && (key === 'arrowup' || key === 'w')) action('rotate');
+    else if (selectedGame === 'deep-echo' && echoKeys[key]) action(echoKeys[key]);
     else if (gameKeys[key]) action(gameKeys[key]);
     else if (selectedGame === 'invaders' && (key === ' ' || code === 'space')) action('fire');
     else if (selectedGame === 'tetris' && (key === ' ' || code === 'space')) action('drop');
